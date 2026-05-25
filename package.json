@@ -1,0 +1,10 @@
+{
+  "name": "bridgecore-chat",
+  "private": true,
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "dev": "bun run --cwd packages/backend dev",
+    "dev:backend": "bun run --cwd packages/backend dev",
+    "build:mobile": "bun run --cwd packages/mobile build"
+  }
+}

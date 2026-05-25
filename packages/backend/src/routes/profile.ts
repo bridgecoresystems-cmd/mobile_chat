@@ -1,0 +1,237 @@
+import { Elysia, t }        from "elysia"
+import { eq, ilike, sql }   from "drizzle-orm"
+import { db }               from "../db"
+import { profiles, users, contacts, contactRequests } from "../db/schema"
+import { authGuard }        from "../middleware/auth"
+import { signChatJwt }      from "../lib/chat-jwt"
+
+const CHAT_ENGINE = () => process.env.CHAT_SERVER_URL ?? "http://chat-engine:8080"
+
+function dmRoomId(a: string, b: string) {
+  return [a, b].sort().join("__")
+}
+
+// ── Profile ───────────────────────────────────────────────────────────────────
+export const profileRoutes = new Elysia({ prefix: "/profile" })
+  .use(authGuard)
+
+  .get("/", async ({ currentUser }) => {
+    const profile = await db.query.profiles.findFirst({
+      where: eq(profiles.user_id, currentUser.id),
+    })
+    return { ...currentUser, profile: profile ?? null }
+  })
+
+  .post(
+    "/",
+    async ({ currentUser, body }) => {
+      const now = Date.now()
+      const exists = await db.query.profiles.findFirst({
+        where: eq(profiles.user_id, currentUser.id),
+        columns: { user_id: true },
+      })
+      if (exists) {
+        await db.update(profiles)
+          .set({ first_name: body.first_name, last_name: body.last_name, phone: body.phone, updated_at: now })
+          .where(eq(profiles.user_id, currentUser.id))
+      } else {
+        await db.insert(profiles).values({
+          user_id: currentUser.id, first_name: body.first_name,
+          last_name: body.last_name, phone: body.phone,
+          created_at: now, updated_at: now,
+        })
+      }
+      return { ok: true }
+    },
+    {
+      body: t.Object({
+        first_name: t.String({ minLength: 1 }),
+        last_name:  t.String({ minLength: 1 }),
+        phone:      t.String({ minLength: 5 }),
+      }),
+    }
+  )
+
+// ── Search ────────────────────────────────────────────────────────────────────
+export const searchRoutes = new Elysia({ prefix: "/users" })
+  .use(authGuard)
+
+  .get(
+    "/search",
+    async ({ query, currentUser }) => {
+      const q = query.q?.trim()
+      if (!q || q.length < 2) return []
+      const p = `%${q}%`
+      return db
+        .select({
+          id: users.id, username: users.username,
+          first_name: profiles.first_name, last_name: profiles.last_name, phone: profiles.phone,
+        })
+        .from(users)
+        .leftJoin(profiles, eq(users.id, profiles.user_id))
+        .where(sql`${users.id} != ${currentUser.id} AND (
+          ${ilike(profiles.first_name, p)} OR ${ilike(profiles.last_name, p)} OR
+          ${ilike(users.username, p)}      OR ${ilike(profiles.phone, p)}
+        )`)
+        .limit(20)
+    },
+    { query: t.Object({ q: t.Optional(t.String()) }) }
+  )
+
+// ── Contacts ──────────────────────────────────────────────────────────────────
+export const contactRoutes = new Elysia({ prefix: "/contacts" })
+  .use(authGuard)
+
+  .get("/", async ({ currentUser }) => {
+    return db
+      .select({
+        contact_id: contacts.contact_id, room_id: contacts.room_id,
+        created_at: contacts.created_at, username: users.username,
+        first_name: profiles.first_name, last_name: profiles.last_name, phone: profiles.phone,
+      })
+      .from(contacts)
+      .leftJoin(users,    eq(contacts.contact_id, users.id))
+      .leftJoin(profiles, eq(contacts.contact_id, profiles.user_id))
+      .where(eq(contacts.user_id, currentUser.id))
+  })
+
+  // Отправить запрос на добавление в контакты
+  .post(
+    "/:userId",
+    async ({ params, currentUser, set }) => {
+      if (params.userId === currentUser.id) {
+        set.status = 400; return { error: "cannot add yourself" }
+      }
+      const target = await db.query.users.findFirst({
+        where: eq(users.id, params.userId), columns: { id: true },
+      })
+      if (!target) { set.status = 404; return { error: "user not found" } }
+
+      // Уже контакты?
+      const alreadyContact = await db.query.contacts.findFirst({
+        where: sql`${contacts.user_id} = ${currentUser.id} AND ${contacts.contact_id} = ${params.userId}`,
+        columns: { id: true },
+      })
+      if (alreadyContact) return { ok: true, status: "already_contact" }
+
+      // Уже есть pending запрос?
+      const existing = await db.query.contactRequests.findFirst({
+        where: sql`${contactRequests.from_id} = ${currentUser.id}
+                   AND ${contactRequests.to_id} = ${params.userId}
+                   AND ${contactRequests.status} = 'pending'`,
+        columns: { id: true },
+      })
+      if (existing) return { ok: true, status: "pending" }
+
+      const roomId = dmRoomId(currentUser.id, params.userId)
+      await db.insert(contactRequests).values({
+        id: crypto.randomUUID(), from_id: currentUser.id,
+        to_id: params.userId, status: "pending",
+        room_id: roomId, created_at: Date.now(),
+      })
+      return { ok: true, status: "pending" }
+    },
+    { params: t.Object({ userId: t.String() }) }
+  )
+
+  .delete(
+    "/:userId",
+    async ({ params, currentUser }) => {
+      await db.delete(contacts).where(
+        sql`${contacts.user_id} = ${currentUser.id} AND ${contacts.contact_id} = ${params.userId}`
+      )
+      return { ok: true }
+    },
+    { params: t.Object({ userId: t.String() }) }
+  )
+
+// ── Notifications (contact requests) ─────────────────────────────────────────
+export const notificationRoutes = new Elysia({ prefix: "/notifications" })
+  .use(authGuard)
+
+  // Входящие запросы (pending) + недавно принятые/отклонённые (последние 50)
+  .get("/", async ({ currentUser }) => {
+    const rows = await db
+      .select({
+        id: contactRequests.id, status: contactRequests.status,
+        room_id: contactRequests.room_id,
+        created_at: contactRequests.created_at, resolved_at: contactRequests.resolved_at,
+        from_id: contactRequests.from_id,
+        username: users.username,
+        first_name: profiles.first_name, last_name: profiles.last_name, phone: profiles.phone,
+      })
+      .from(contactRequests)
+      .leftJoin(users,    eq(contactRequests.from_id, users.id))
+      .leftJoin(profiles, eq(contactRequests.from_id, profiles.user_id))
+      .where(eq(contactRequests.to_id, currentUser.id))
+      .orderBy(sql`${contactRequests.created_at} DESC`)
+      .limit(50)
+
+    return rows
+  })
+
+  // Количество непрочитанных (pending)
+  .get("/count", async ({ currentUser }) => {
+    const rows = await db
+      .select({ id: contactRequests.id })
+      .from(contactRequests)
+      .where(sql`${contactRequests.to_id} = ${currentUser.id} AND ${contactRequests.status} = 'pending'`)
+    return { count: rows.length }
+  })
+
+  // Принять запрос
+  .post(
+    "/:requestId/accept",
+    async ({ params, currentUser, set }) => {
+      const req = await db.query.contactRequests.findFirst({
+        where: sql`${contactRequests.id} = ${params.requestId}
+                   AND ${contactRequests.to_id} = ${currentUser.id}
+                   AND ${contactRequests.status} = 'pending'`,
+      })
+      if (!req) { set.status = 404; return { error: "request not found" } }
+
+      const now = Date.now()
+
+      // Обновляем статус запроса
+      await db.update(contactRequests)
+        .set({ status: "accepted", resolved_at: now })
+        .where(eq(contactRequests.id, req.id))
+
+      // Добавляем контакты ОБОИМ
+      await db.insert(contacts).values([
+        { id: crypto.randomUUID(), user_id: req.from_id, contact_id: req.to_id,   room_id: req.room_id, created_at: now },
+        { id: crypto.randomUUID(), user_id: req.to_id,   contact_id: req.from_id, room_id: req.room_id, created_at: now },
+      ]).onConflictDoNothing()
+
+      // Создаём комнату в Rust engine
+      const chatToken = await signChatJwt(currentUser.id)
+      await fetch(`${CHAT_ENGINE()}/rooms?token=${chatToken}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: req.room_id, members: [req.from_id] }),
+      }).catch(() => {})
+
+      return { ok: true, room_id: req.room_id }
+    },
+    { params: t.Object({ requestId: t.String() }) }
+  )
+
+  // Отклонить запрос
+  .post(
+    "/:requestId/reject",
+    async ({ params, currentUser, set }) => {
+      const req = await db.query.contactRequests.findFirst({
+        where: sql`${contactRequests.id} = ${params.requestId}
+                   AND ${contactRequests.to_id} = ${currentUser.id}
+                   AND ${contactRequests.status} = 'pending'`,
+      })
+      if (!req) { set.status = 404; return { error: "request not found" } }
+
+      await db.update(contactRequests)
+        .set({ status: "rejected", resolved_at: Date.now() })
+        .where(eq(contactRequests.id, req.id))
+
+      return { ok: true }
+    },
+    { params: t.Object({ requestId: t.String() }) }
+  )

@@ -1,0 +1,25 @@
+{
+  "name": "@chat/backend",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "db:push": "drizzle-kit push"
+  },
+  "dependencies": {
+    "@chat/shared": "workspace:*",
+    "@elysiajs/cors": "^1.2.0",
+    "@elysiajs/jwt": "^1.2.2",
+    "@elysiajs/swagger": "^1.2.0",
+    "drizzle-orm": "^0.45.1",
+    "elysia": "latest",
+    "postgres": "^3.4.5"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "drizzle-kit": "^0.31.8"
+  }
+}

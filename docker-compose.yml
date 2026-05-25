@@ -1,0 +1,74 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: chat_postgres
+    environment:
+      POSTGRES_USER:     chat_user
+      POSTGRES_PASSWORD: chat_pass
+      POSTGRES_DB:       chat_db
+    ports:
+      - "5434:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U chat_user -d chat_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: chat_redis
+    ports:
+      - "6381:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  chat-engine:
+    image: turbo-chat-engine
+    build:
+      context: /home/batyr/projects/framework
+      dockerfile: Dockerfile
+    container_name: chat_engine
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL:        postgres://chat_user:chat_pass@postgres:5432/chat_db
+      REDIS_URL:           redis://redis:6379
+      JWT_SECRET:          ${JWT_SECRET:-dev-secret-change-in-production}
+      RUST_LOG:            turbo_chat_engine=info
+      R2_ACCOUNT_ID:       ${R2_ACCOUNT_ID:-placeholder}
+      R2_ACCESS_KEY_ID:    ${R2_ACCESS_KEY_ID:-placeholder}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-placeholder}
+      R2_BUCKET:           ${R2_BUCKET:-turbo-chat-files}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: .
+      dockerfile: packages/backend/Dockerfile
+    container_name: chat_backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      chat-engine:
+        condition: service_started
+    environment:
+      DATABASE_URL:      postgres://chat_user:chat_pass@postgres:5432/chat_db
+      JWT_SECRET:        ${JWT_SECRET:-dev-secret-change-in-production}
+      CHAT_SERVER_URL:   http://chat-engine:8080
+      PORT:              3001
+    ports:
+      - "3001:3001"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
