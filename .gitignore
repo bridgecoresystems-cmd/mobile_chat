@@ -4,3 +4,4 @@ dist/
 bun.lock
 packages/mobile/android/
 packages/mobile/ios/
+start.md

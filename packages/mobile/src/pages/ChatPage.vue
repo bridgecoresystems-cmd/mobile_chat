@@ -26,63 +26,88 @@
       </div>
 
       <template v-else>
-        <div
-          v-for="msg in messages"
-          :key="msg.id"
-          class="msg-row"
-          :class="{ own: msg.mine }"
-        >
-          <div v-if="!msg.mine" class="msg-avatar">{{ peerInitials }}</div>
-          <div class="bubble-wrap">
-            <span v-if="!msg.mine" class="sender-name">{{ peerName }}</span>
-            <div class="bubble" :class="{ deleted: msg.deleted }">
-              <!-- Фото -->
-              <img
-                v-if="msg.photoUrl && !msg.deleted"
-                :src="msg.photoUrl"
-                class="photo"
-                loading="lazy"
-                @click="openPhoto(msg.photoUrl!)"
-              />
-              <!-- Текст -->
-              <p v-else class="text">{{ msg.deleted ? 'Сообщение удалено' : msg.text }}</p>
+        <template v-for="msg in annotatedMessages" :key="msg.id">
+          <!-- Разделитель по дате -->
+          <div v-if="msg.dateSep" class="date-sep">
+            <span>{{ msg.dateSep }}</span>
+          </div>
 
-              <div class="time">
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
-                </svg>
-                {{ formatTime(msg.timestamp) }}
-                <!-- Статус прочтения для своих сообщений -->
-                <span v-if="msg.mine && !msg.deleted" class="read-status" :class="{ read: msg.read }">
-                  {{ msg.read ? '✓✓' : '✓' }}
-                </span>
+          <div
+            class="msg-row"
+            :class="{
+              own:         msg.mine,
+              'grp-start': msg.isGroupFirst,
+              'grp-end':   msg.isGroupLast,
+            }"
+          >
+            <!-- Слот аватара: всегда резервирует ширину, показывает аватар только в конце группы -->
+            <div v-if="!msg.mine" class="avatar-slot">
+              <div v-if="msg.showAvatar" class="msg-avatar">{{ peerInitials }}</div>
+            </div>
+
+            <div class="bubble-wrap">
+              <span v-if="msg.showName" class="sender-name">{{ peerName }}</span>
+              <div
+                class="bubble"
+                :class="{
+                  deleted:      msg.deleted,
+                  'grp-notlast': !msg.isGroupLast,
+                }"
+              >
+                <!-- Фото -->
+                <img
+                  v-if="msg.photoUrl && !msg.deleted"
+                  :src="msg.photoUrl"
+                  class="photo"
+                  loading="lazy"
+                  @click="openPhoto(msg.photoUrl!)"
+                />
+                <!-- Текст -->
+                <p v-else class="text">{{ msg.deleted ? 'Сообщение удалено' : msg.text }}</p>
+
+                <div class="time">
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                  </svg>
+                  {{ formatTime(msg.timestamp) }}
+                  <span v-if="msg.mine && !msg.deleted" class="read-status" :class="{ read: msg.read }">
+                    {{ msg.read ? '✓✓' : '✓' }}
+                  </span>
+                </div>
+              </div>
+
+              <!-- Кнопки редактировать/удалить (только свои, не удалённые) -->
+              <div v-if="msg.mine && !msg.deleted" class="msg-actions">
+                <button class="act-btn" @click="startEdit(msg)">✏️</button>
+                <button class="act-btn" @click="confirmDelete(msg.id)">🗑️</button>
               </div>
             </div>
-
-            <!-- Кнопки редактировать/удалить (только свои, не удалённые) -->
-            <div v-if="msg.mine && !msg.deleted" class="msg-actions">
-              <button class="act-btn" @click="startEdit(msg)">✏️</button>
-              <button class="act-btn" @click="confirmDelete(msg.id)">🗑️</button>
-            </div>
           </div>
-        </div>
+        </template>
 
         <div v-if="typingText" class="typing">
-          <span>{{ typingText }}</span>
-          <span class="dots"><span>.</span><span>.</span><span>.</span></span>
+          <div class="typing-avatar">{{ peerInitials }}</div>
+          <div class="typing-bubble">
+            <span class="dots"><span /><span /><span /></span>
+          </div>
         </div>
       </template>
     </div>
 
-    <!-- Редактирование -->
+    <!-- Баннер редактирования -->
     <div v-if="editingMsg" class="edit-banner">
-      <span>Редактирование: {{ editingMsg.text.slice(0, 40) }}</span>
+      <div class="edit-banner-left">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+        </svg>
+        <span>{{ editingMsg.text.slice(0, 40) }}</span>
+      </div>
       <button @click="cancelEdit">✕</button>
     </div>
 
     <footer>
       <div class="input-row">
-        <!-- Кнопка выбора фото -->
         <label class="photo-btn" title="Прикрепить фото">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
@@ -119,7 +144,7 @@
       </div>
     </footer>
 
-    <!-- Лайтбокс для просмотра фото -->
+    <!-- Лайтбокс -->
     <div v-if="lightboxUrl" class="lightbox" @click="lightboxUrl = null">
       <img :src="lightboxUrl" class="lightbox-img" />
     </div>
@@ -143,14 +168,13 @@ const roomId = route.params.roomId as string
 const chat   = useChat(roomId)
 const { messages, onlineUsers, typingUsers, isConnected } = chat
 
-const draft      = ref('')
-const bodyEl     = ref<HTMLElement | null>(null)
-const contact    = ref<Contact | null>(null)
-const uploading  = ref(false)
+const draft       = ref('')
+const bodyEl      = ref<HTMLElement | null>(null)
+const contact     = ref<Contact | null>(null)
+const uploading   = ref(false)
 const lightboxUrl = ref<string | null>(null)
-const editingMsg = ref<Message | null>(null)
+const editingMsg  = ref<Message | null>(null)
 
-// Определяем peer user_id из room_id (формат "id1__id2")
 const peerId = computed(() => {
   const parts = roomId.split('__')
   if (parts.length !== 2) return null
@@ -175,20 +199,66 @@ const peerInitials = computed(() => {
     : name[0][0].toUpperCase()
 })
 
-// Typing indicator — show the peer's name, not their raw user id (1-on-1 chat)
 const typingText = computed(() =>
   typingUsers.value.size > 0 ? `${peerName.value} печатает...` : ''
 )
+
+// ── Группировка и разделители по датам ───────────────────────────────────────
+
+function sameDay(ts1: number, ts2: number) {
+  const a = new Date(ts1), b = new Date(ts2)
+  return a.getFullYear() === b.getFullYear() &&
+         a.getMonth()    === b.getMonth()    &&
+         a.getDate()     === b.getDate()
+}
+
+function formatDateSep(ts: number) {
+  const d   = new Date(ts)
+  const now = new Date()
+  const yest = new Date(now); yest.setDate(now.getDate() - 1)
+  if (sameDay(ts, now.getTime()))  return 'Сегодня'
+  if (sameDay(ts, yest.getTime())) return 'Вчера'
+  return d.toLocaleDateString('ru', {
+    day: 'numeric', month: 'long',
+    ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
+  })
+}
+
+const annotatedMessages = computed(() => {
+  const msgs = messages.value
+  return msgs.map((msg, i) => {
+    const prev = msgs[i - 1]
+    const next = msgs[i + 1]
+
+    const prevSameDay = prev ? sameDay(prev.timestamp, msg.timestamp) : false
+    const nextSameDay = next ? sameDay(msg.timestamp, next.timestamp) : false
+
+    const samePrev = prev?.mine === msg.mine && prevSameDay
+    const sameNext = next?.mine === msg.mine && nextSameDay
+
+    return {
+      ...msg,
+      isGroupFirst: !samePrev,
+      isGroupLast:  !sameNext,
+      showAvatar:   !msg.mine && !sameNext,
+      showName:     !msg.mine && !samePrev,
+      dateSep:      !prevSameDay ? formatDateSep(msg.timestamp) : null,
+    }
+  })
+})
+
+// ── Форматирование времени ────────────────────────────────────────────────────
 
 function formatTime(ts: number) {
   return new Date(ts).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
 }
 
+// ── Отправка / редактирование / удаление ─────────────────────────────────────
+
 function sendMsg() {
   if (!draft.value.trim()) return
   if (editingMsg.value) {
     chat.editMessage(editingMsg.value.id, draft.value.trim())
-    // Optimistically update local copy
     const msg = messages.value.find(m => m.id === editingMsg.value!.id)
     if (msg) msg.text = draft.value.trim()
     cancelEdit()
@@ -215,22 +285,19 @@ function confirmDelete(msgId: string) {
   if (msg) { msg.deleted = true; msg.text = '' }
 }
 
-function openPhoto(url: string) {
-  lightboxUrl.value = url
-}
+function openPhoto(url: string) { lightboxUrl.value = url }
 
 async function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
   const file  = input.files?.[0]
   if (!file) return
-  input.value = ""
+  input.value = ''
 
   uploading.value = true
   try {
-    const ext = file.name.split('.').pop() ?? 'jpg'
+    const ext      = file.name.split('.').pop() ?? 'jpg'
     const filename = `photo_${Date.now()}.${ext}`
 
-    // Получаем presigned URL через BFF
     const res = await fetch(
       `${API}/upload-url?filename=${encodeURIComponent(filename)}&content_type=${encodeURIComponent(file.type || 'image/jpeg')}`,
       { headers: bffHeaders() }
@@ -238,11 +305,10 @@ async function onFileChange(e: Event) {
     if (!res.ok) throw new Error('upload-url failed')
     const { upload_url, file_url } = await res.json()
 
-    // Загружаем напрямую в R2
     await fetch(upload_url, {
-      method:  'PUT',
+      method: 'PUT',
       headers: { 'content-type': file.type || 'image/jpeg' },
-      body:    file,
+      body: file,
     })
 
     chat.sendPhoto(file_url)
@@ -287,15 +353,18 @@ onMounted(async () => {
 <style scoped>
 .page { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
 
+/* ── Шапка ─────────────────────────────────────────────────────────────────── */
 header {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 12px 16px;
   padding-top: calc(12px + env(safe-area-inset-top));
-  border-bottom: 1px solid var(--border);
   background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 8px rgba(0,0,0,.08);
   flex-shrink: 0;
+  z-index: 1;
 }
 
 .back {
@@ -323,13 +392,13 @@ header {
 }
 
 .status.online { color: #22c55e; }
-
 .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
+/* ── Тело чата ─────────────────────────────────────────────────────────────── */
 .body {
   flex: 1; overflow-y: auto;
-  padding: 16px;
-  display: flex; flex-direction: column; gap: 12px;
+  padding: 12px 16px 16px;
+  display: flex; flex-direction: column;
   background: var(--bg);
 }
 
@@ -343,35 +412,94 @@ header {
 .empty p    { font-size: 15px; font-weight: 600; color: var(--text); }
 .empty span { font-size: 13px; }
 
-.msg-row {
-  display: flex; align-items: flex-end; gap: 8px; max-width: 80%;
+/* ── Разделитель дат ───────────────────────────────────────────────────────── */
+.date-sep {
+  display: flex; align-items: center; justify-content: center;
+  margin: 10px 0 6px;
 }
 
+.date-sep span {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 11px; font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: .2px;
+}
+
+/* ── Строки сообщений ──────────────────────────────────────────────────────── */
+.msg-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 7px;
+  max-width: 82%;
+  margin-top: 2px;
+  animation: msgIn .16s ease both;
+}
+
+.msg-row.grp-start { margin-top: 10px; }
+.date-sep + .msg-row { margin-top: 4px; }
+
 .msg-row.own {
-  align-self: flex-end; flex-direction: row-reverse;
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+@keyframes msgIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Аватар ────────────────────────────────────────────────────────────────── */
+.avatar-slot {
+  width: 30px; height: 30px;
+  flex-shrink: 0;
+  display: flex; align-items: flex-end;
 }
 
 .msg-avatar {
   width: 30px; height: 30px;
   border-radius: 50%;
-  background: var(--surface); border: 1px solid var(--border);
+  background: var(--surface);
+  border: 1px solid var(--border);
   display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; flex-shrink: 0; color: var(--accent);
+  font-size: 11px; font-weight: 700; color: var(--accent);
 }
 
-.bubble-wrap { display: flex; flex-direction: column; gap: 3px; }
+/* ── Пузырь ────────────────────────────────────────────────────────────────── */
+.bubble-wrap { display: flex; flex-direction: column; gap: 2px; }
 
 .sender-name { font-size: 11px; font-weight: 700; color: var(--accent); margin-left: 4px; }
 
 .bubble {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 16px 16px 16px 4px;
-  padding: 9px 12px; box-shadow: 0 1px 2px rgba(0,0,0,.1);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px 16px 16px 16px; /* хвостик слева-снизу для последнего */
+  padding: 8px 11px;
+  box-shadow: var(--shadow);
 }
 
+/* Не последнее в группе — убираем хвостик */
+.bubble.grp-notlast {
+  border-radius: 4px 16px 16px 16px;
+}
+/* Последнее (или одиночное) для чужих — хвостик слева-снизу */
+.bubble:not(.grp-notlast) {
+  border-radius: 4px 16px 16px 16px;
+}
+
+/* Свои сообщения */
 .own .bubble {
   background: linear-gradient(135deg, var(--accent), #4f46e5);
-  border: none; border-radius: 16px 16px 4px 16px; color: #fff;
+  border: none;
+  border-radius: 16px 4px 4px 16px; /* хвостик справа-снизу */
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(99,102,241,.35);
+}
+
+.own .bubble.grp-notlast {
+  border-radius: 16px 4px 4px 16px;
 }
 
 .bubble.deleted { opacity: .5; font-style: italic; }
@@ -392,20 +520,14 @@ header {
 
 .own .time { color: rgba(255,255,255,.6); }
 
-.read-status {
-  font-size: 10px; font-weight: 700; color: rgba(255,255,255,.5);
-  margin-left: 2px;
-}
-
+.read-status { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.5); margin-left: 2px; }
 .read-status.read { color: #86efac; }
 
-.msg-actions {
-  display: flex; gap: 4px;
-  margin-top: 2px; justify-content: flex-end;
-}
+/* ── Кнопки редактирования ────────────────────────────────────────────────── */
+.msg-actions { display: flex; gap: 4px; margin-top: 2px; justify-content: flex-end; }
 
 .act-btn {
-  font-size: 12px; padding: 2px 4px;
+  font-size: 12px; padding: 2px 5px;
   background: var(--surface); border: 1px solid var(--border);
   border-radius: 6px; cursor: pointer;
   opacity: .6; transition: opacity .15s;
@@ -413,29 +535,57 @@ header {
 
 .act-btn:hover { opacity: 1; }
 
+/* ── Индикатор печатания ─────────────────────────────────────────────────────*/
 .typing {
-  font-size: 13px; color: var(--muted); font-style: italic;
-  display: flex; align-items: center; gap: 4px; padding-left: 38px;
+  display: flex; align-items: flex-end; gap: 7px;
+  margin-top: 8px;
 }
 
-.dots span { animation: blink 1.4s infinite both; }
+.typing-avatar {
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  background: var(--surface); border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; color: var(--accent);
+  flex-shrink: 0;
+}
+
+.typing-bubble {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 4px 16px 16px 16px;
+  padding: 10px 14px;
+  display: flex; align-items: center; gap: 4px;
+}
+
+.dots { display: flex; gap: 4px; }
+.dots span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--muted);
+  animation: blink 1.4s infinite both;
+}
 .dots span:nth-child(2) { animation-delay: .2s; }
 .dots span:nth-child(3) { animation-delay: .4s; }
 
 @keyframes blink { 0%,100% { opacity: .2; } 20% { opacity: 1; } }
 
+/* ── Баннер редактирования ───────────────────────────────────────────────────*/
 .edit-banner {
   display: flex; align-items: center; justify-content: space-between;
-  padding: 6px 16px;
+  padding: 7px 16px;
   background: var(--accent); color: #fff; font-size: 12px;
+  gap: 8px;
 }
 
-.edit-banner button { background: none; color: #fff; font-size: 16px; }
+.edit-banner-left { display: flex; align-items: center; gap: 7px; opacity: .9; }
+.edit-banner button { background: none; color: #fff; font-size: 16px; opacity: .8; }
 
+/* ── Подвал ────────────────────────────────────────────────────────────────── */
 footer {
-  border-top: 1px solid var(--border); background: var(--surface);
+  border-top: 1px solid var(--border);
+  background: var(--surface);
   padding: 10px 16px;
   padding-bottom: calc(10px + env(safe-area-inset-bottom));
+  box-shadow: 0 -1px 8px rgba(0,0,0,.06);
 }
 
 .input-row { display: flex; align-items: center; gap: 8px; }
@@ -447,24 +597,25 @@ footer {
 }
 
 .photo-btn:hover { color: var(--accent); }
-
 .hidden-input { display: none; }
 
 .textarea {
   flex: 1; background: var(--bg); border: 1.5px solid var(--border);
-  border-radius: 12px; padding: 10px 14px; color: var(--text);
+  border-radius: 20px; padding: 9px 14px; color: var(--text);
   font-size: 14px; resize: none; max-height: 100px; line-height: 1.4;
+  transition: border-color .15s;
 }
 
-.textarea:focus { border-color: var(--accent); background: var(--surface); }
+.textarea:focus { border-color: var(--accent); }
 
 .send-btn {
-  width: 42px; height: 42px; border-radius: 50%;
+  width: 40px; height: 40px; border-radius: 50%;
   background: var(--accent); color: #fff;
   display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; transition: opacity .15s;
+  flex-shrink: 0; transition: opacity .15s, transform .1s;
 }
 
+.send-btn:not(:disabled):active { transform: scale(.92); }
 .send-btn:disabled { opacity: .4; }
 
 .spinner {
@@ -478,9 +629,10 @@ footer {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ── Лайтбокс ────────────────────────────────────────────────────────────────*/
 .lightbox {
   position: fixed; inset: 0; z-index: 999;
-  background: rgba(0,0,0,.9);
+  background: rgba(0,0,0,.92);
   display: flex; align-items: center; justify-content: center;
   cursor: zoom-out;
 }

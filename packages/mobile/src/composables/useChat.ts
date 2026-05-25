@@ -226,7 +226,7 @@ export function useChat(roomId: string) {
             timestamp: Number(m.timestamp),
             mine:      m.sender_id === userId,
             deleted:   false,
-            read:      false,
+            read:      m.read_by_peer ?? false,
           }
         })
     } catch {}

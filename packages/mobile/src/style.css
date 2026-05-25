@@ -10,6 +10,22 @@
   --mine-bg:  #6366f1;
   --other-bg: #2a2a2a;
   --radius:   12px;
+  --shadow:   0 2px 12px rgba(0,0,0,.4);
+  color-scheme: dark;
+}
+
+[data-theme="light"] {
+  --bg:       #f2f2f7;
+  --surface:  #ffffff;
+  --border:   #e5e5ea;
+  --accent:   #6366f1;
+  --text:     #1c1c1e;
+  --muted:    #8e8e93;
+  --mine-bg:  #6366f1;
+  --other-bg: #e9e9eb;
+  --radius:   12px;
+  --shadow:   0 2px 12px rgba(0,0,0,.12);
+  color-scheme: light;
 }
 
 html, body, #app {

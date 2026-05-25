@@ -33,6 +33,26 @@
         </svg>
         <span>Профиль</span>
       </router-link>
+
+      <button class="nav-item theme-toggle" @click="toggleTheme" :title="theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'">
+        <!-- Луна — сейчас тёмная, нажать чтобы включить светлую -->
+        <svg v-if="theme === 'dark'" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+        <!-- Солнце — сейчас светлая, нажать чтобы включить тёмную -->
+        <svg v-else width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <span>Тема</span>
+      </button>
     </nav>
   </div>
 </template>
@@ -40,9 +60,12 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { bffHeaders } from '../stores/auth'
+import { useTheme } from '../composables/useTheme'
 
-const API         = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
-const notifCount  = ref(0)
+const API        = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+const notifCount = ref(0)
+const { theme, toggleTheme } = useTheme()
+
 let interval: ReturnType<typeof setInterval> | null = null
 
 async function fetchCount() {
@@ -57,7 +80,7 @@ async function fetchCount() {
 
 onMounted(() => {
   fetchCount()
-  interval = setInterval(fetchCount, 10_000) // poll каждые 10 сек
+  interval = setInterval(fetchCount, 10_000)
 })
 
 onUnmounted(() => { if (interval) clearInterval(interval) })
@@ -101,9 +124,13 @@ onUnmounted(() => { if (interval) clearInterval(interval) })
   transition: color .15s;
   font-size: 10px;
   font-weight: 500;
+  background: none;
+  border: none;
 }
 
 .nav-item.active { color: var(--accent); }
+
+.theme-toggle:hover { color: var(--accent); }
 
 .icon-wrap {
   position: relative;
