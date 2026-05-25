@@ -89,8 +89,11 @@ export function useChat(roomId: string) {
   const isConnected = ref(false)
 
   let ws: WebSocket | null = null
-  let typingTimer: ReturnType<typeof setTimeout> | null = null
+  let typingTimer:   ReturnType<typeof setTimeout> | null = null
+  let reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  let reconnectDelay = 1000
   let myUserId = ""
+  let savedToken = ""
 
   function decodeStr(str: string): { text: string; photoUrl: string | null } {
     try {
@@ -103,35 +106,23 @@ export function useChat(roomId: string) {
     return decodeStr(new TextDecoder().decode(raw))
   }
 
-  async function connect(chatToken: string, userId: string) {
-    myUserId = userId
+  function scheduleReconnect() {
+    if (reconnectTimer) return
+    reconnectTimer = setTimeout(() => {
+      reconnectTimer = null
+      connectWs()
+    }, reconnectDelay)
+    reconnectDelay = Math.min(reconnectDelay * 2, 30_000)
+  }
 
-    try {
-      const res = await fetch(`${API_URL}/history/${roomId}?limit=50`)
-      const history: any[] = await res.json()
-      // Rust /history returns each message's payload already UTF-8 decoded as `text`.
-      messages.value = (history ?? [])
-        .filter((m) => m.text !== "join" && m.text !== "leave")
-        .map((m) => {
-          const { text, photoUrl } = decodeStr(m.text ?? "")
-          return {
-            id:        String(m.id),
-            senderId:  m.sender_id,
-            text,
-            photoUrl,
-            timestamp: Number(m.timestamp),
-            mine:      m.sender_id === userId,
-            deleted:   false,
-            read:      false,
-          }
-        })
-    } catch {}
-
-    ws = new WebSocket(`${WS_URL}/?token=${chatToken}`)
+  function connectWs() {
+    ws?.close()
+    ws = new WebSocket(`${WS_URL}/?token=${savedToken}`)
     ws.binaryType = "arraybuffer"
 
     ws.onopen = () => {
       isConnected.value = true
+      reconnectDelay = 1000
       // First frame must be ChatMessage with room_id — server uses it to subscribe to the room
       sendEnvelope({
         message: ChatMessage.create({
@@ -143,7 +134,10 @@ export function useChat(roomId: string) {
         }),
       })
     }
-    ws.onclose = () => { isConnected.value = false }
+    ws.onclose = () => {
+      isConnected.value = false
+      scheduleReconnect()
+    }
     ws.onerror = () => { isConnected.value = false }
 
     ws.onmessage = (event) => {
@@ -211,6 +205,33 @@ export function useChat(roomId: string) {
           : onlineUsers.value.delete(env.presence.user_id)
       }
     }
+  }
+
+  async function connect(chatToken: string, userId: string) {
+    myUserId   = userId
+    savedToken = chatToken
+
+    try {
+      const res = await fetch(`${API_URL}/history/${roomId}?limit=50`)
+      const history: any[] = await res.json()
+      messages.value = (history ?? [])
+        .filter((m) => m.text !== "join" && m.text !== "leave")
+        .map((m) => {
+          const { text, photoUrl } = decodeStr(m.text ?? "")
+          return {
+            id:        String(m.id),
+            senderId:  m.sender_id,
+            text,
+            photoUrl,
+            timestamp: Number(m.timestamp),
+            mine:      m.sender_id === userId,
+            deleted:   false,
+            read:      false,
+          }
+        })
+    } catch {}
+
+    connectWs()
   }
 
   function send(text: string) {
@@ -301,11 +322,24 @@ export function useChat(roomId: string) {
   }
 
   function disconnect() {
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
     stopTyping()
     ws?.close()
   }
 
-  onUnmounted(disconnect)
+  function handleVisibility() {
+    if (document.visibilityState === "visible" && !isConnected.value && savedToken) {
+      if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
+      reconnectDelay = 1000
+      connectWs()
+    }
+  }
+  document.addEventListener("visibilitychange", handleVisibility)
+
+  onUnmounted(() => {
+    document.removeEventListener("visibilitychange", handleVisibility)
+    disconnect()
+  })
 
   const typingText = computed(() => {
     const users = [...typingUsers.value]
