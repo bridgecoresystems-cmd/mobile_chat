@@ -12,6 +12,7 @@ export const profiles = pgTable("profiles", {
   first_name: text("first_name").notNull(),
   last_name:  text("last_name").notNull(),
   phone:      text("phone").notNull(),
+  avatar_url: text("avatar_url"),
   created_at: bigint("created_at", { mode: "number" }).notNull(),
   updated_at: bigint("updated_at", { mode: "number" }).notNull(),
 })

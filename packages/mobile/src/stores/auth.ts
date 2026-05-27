@@ -32,12 +32,14 @@ function applyResponse(data: AuthResponse) {
 }
 
 // Headers for BFF-protected endpoints
-export function bffHeaders(): HeadersInit {
-  return {
-    "authorization":  `Bearer ${state.token}`,
-    "x-chat-token":   state.chat_token ?? "",
-    "content-type":   "application/json",
+// skipContentType=true используется для FormData (браузер сам проставляет boundary)
+export function bffHeaders(opts?: { skipContentType?: boolean }): HeadersInit {
+  const h: Record<string, string> = {
+    "authorization": `Bearer ${state.token}`,
+    "x-chat-token":  state.chat_token ?? "",
   }
+  if (!opts?.skipContentType) h["content-type"] = "application/json"
+  return h
 }
 
 export function useAuthStore() {

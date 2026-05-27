@@ -144,6 +144,41 @@ const app = new Elysia()
     }
   )
 
+  // POST /upload — прокси-загрузка файла в R2 через сервер (без CORS на клиенте)
+  .post(
+    "/upload",
+    async ({ headers, body, set }) => {
+      const chatToken = headers["x-chat-token"]
+      if (!chatToken) { set.status = 400; return { error: "missing X-Chat-Token header" } }
+
+      const file        = body.file as File
+      const contentType = file.type || "image/jpeg"
+      const ext         = file.name?.split(".").pop() ?? "jpg"
+      const filename    = `upload_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+
+      // Получаем presigned URL от Rust engine (server → engine, без CORS)
+      const qs     = `filename=${encodeURIComponent(filename)}&content_type=${encodeURIComponent(contentType)}&token=${chatToken}`
+      const urlRes = await fetch(`${CHAT_ENGINE}/upload-url?${qs}`)
+      if (!urlRes.ok) { set.status = 502; return { error: "Failed to get upload URL" } }
+      const { upload_url, file_url } = await urlRes.json() as { upload_url: string; file_url: string }
+
+      // Загружаем в R2 со стороны сервера — никакого CORS
+      const uploadRes = await fetch(upload_url, {
+        method:  "PUT",
+        headers: { "content-type": contentType },
+        body:    file,
+      })
+      if (!uploadRes.ok) { set.status = 502; return { error: `R2 upload failed: ${uploadRes.status}` } }
+
+      return { file_url }
+    },
+    {
+      body: t.Object({
+        file: t.File({ maxSize: "20m" }),
+      }),
+    }
+  )
+
   .post(
     "/register-fcm-token",
     async ({ headers, body, set }) => {

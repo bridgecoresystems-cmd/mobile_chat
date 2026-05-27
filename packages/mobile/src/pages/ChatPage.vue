@@ -295,21 +295,16 @@ async function onFileChange(e: Event) {
 
   uploading.value = true
   try {
-    const ext      = file.name.split('.').pop() ?? 'jpg'
-    const filename = `photo_${Date.now()}.${ext}`
-
-    const res = await fetch(
-      `${API}/upload-url?filename=${encodeURIComponent(filename)}&content_type=${encodeURIComponent(file.type || 'image/jpeg')}`,
-      { headers: bffHeaders() }
-    )
-    if (!res.ok) throw new Error('upload-url failed')
-    const { upload_url, file_url } = await res.json()
-
-    await fetch(upload_url, {
-      method: 'PUT',
-      headers: { 'content-type': file.type || 'image/jpeg' },
-      body: file,
+    // Загружаем через BFF-прокси — сервер сам пишет в R2, без CORS на клиенте
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetch(`${API}/upload`, {
+      method:  'POST',
+      headers: bffHeaders({ skipContentType: true }),
+      body:    form,
     })
+    if (!res.ok) throw new Error('upload failed')
+    const { file_url } = await res.json()
 
     chat.sendPhoto(file_url)
   } catch (err) {

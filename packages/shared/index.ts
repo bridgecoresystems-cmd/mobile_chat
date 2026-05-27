@@ -9,6 +9,7 @@ export interface Profile {
   first_name: string
   last_name:  string
   phone:      string
+  avatar_url: string | null
 }
 
 export interface Contact {

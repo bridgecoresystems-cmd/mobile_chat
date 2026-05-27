@@ -6,9 +6,10 @@ const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: '/',              redirect: '/contacts' },
+    { path: '/',              redirect: '/chats' },
     { path: '/login',         component: () => import('../pages/LoginPage.vue') },
     { path: '/setup',         component: () => import('../pages/ProfileSetupPage.vue'), meta: { auth: true } },
+    { path: '/chats',         component: () => import('../pages/ChatsPage.vue'),        meta: { auth: true, needsProfile: true } },
     { path: '/contacts',      component: () => import('../pages/ContactsPage.vue'),     meta: { auth: true, needsProfile: true } },
     { path: '/notifications', component: () => import('../pages/NotificationsPage.vue'),meta: { auth: true, needsProfile: true } },
     { path: '/profile',       component: () => import('../pages/ProfilePage.vue'),      meta: { auth: true, needsProfile: true } },
@@ -17,7 +18,6 @@ export const router = createRouter({
   ],
 })
 
-// Хранит токен, для которого уже проверили профиль — сбрасывается при смене токена (logout/login)
 let checkedForToken: string | null = null
 
 router.beforeEach(async (to) => {
@@ -30,7 +30,7 @@ router.beforeEach(async (to) => {
       const res = await fetch(`${API}/profile`, { headers: bffHeaders() })
       if (res.ok) {
         const d = await res.json()
-        checkedForToken = auth.token   // запоминаем токен, для которого профиль OK
+        checkedForToken = auth.token
         if (!d.profile) return '/setup'
       }
     } catch {}

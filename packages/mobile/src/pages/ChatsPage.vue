@@ -2,11 +2,8 @@
   <AppLayout>
     <div class="page">
       <header>
-        <div class="header-left">
-          <div class="my-avatar" @click="router.push('/profile')">{{ myInitials }}</div>
-          <h1>Контакты</h1>
-        </div>
-        <button class="add-btn" @click="router.push('/search')" title="Найти пользователя">
+        <h1>Чаты</h1>
+        <button class="compose-btn" @click="router.push('/search')" title="Новый чат">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
@@ -21,7 +18,7 @@
           </svg>
           <input
             v-model="query"
-            placeholder="Поиск контакта..."
+            placeholder="Поиск чата..."
             @focus="searchFocused = true"
             @blur="searchFocused = false"
           />
@@ -38,46 +35,42 @@
 
       <!-- Нет контактов вообще -->
       <div v-else-if="!contacts.length" class="empty">
-        <div class="empty-icon">👥</div>
-        <p>Нет контактов</p>
-        <span>Нажми «+» чтобы найти людей</span>
+        <div class="empty-icon">💬</div>
+        <p>Нет чатов</p>
+        <span>Найди людей через поиск контактов</span>
       </div>
 
       <!-- Поиск ничего не нашёл -->
       <div v-else-if="query && !filtered.length" class="empty">
         <div class="empty-icon">🔍</div>
-        <p>Контакт не найден</p>
-        <span>«{{ query }}» не в списке</span>
-        <button class="add-contact-btn" @click="router.push('/search')">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
-          </svg>
-          Добавить контакт
-        </button>
+        <p>Чат не найден</p>
+        <span>«{{ query }}» — нет такого чата</span>
       </div>
 
-      <!-- Список -->
+      <!-- Список чатов -->
       <ul v-else class="list" ref="listEl">
         <li
           v-for="c in visible"
           :key="c.contact_id"
+          class="chat-item"
           @click="openChat(c)"
         >
           <div class="avatar" :style="{ background: avatarColor(c.contact_id) }">
             {{ contactInitials(c) }}
           </div>
           <div class="info">
-            <span class="name">{{ contactName(c) }}</span>
-            <span class="sub">{{ c.phone ?? c.username }}</span>
+            <div class="top-row">
+              <span class="name">{{ contactName(c) }}</span>
+              <span class="time">{{ formatTime(c.created_at) }}</span>
+            </div>
+            <span class="sub">{{ c.phone ?? c.username ?? '&nbsp;' }}</span>
           </div>
-          <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
         </li>
 
         <!-- Сентинел для lazy load -->
         <li v-if="hasMore" ref="sentinel" class="sentinel" />
 
+        <!-- Конец списка -->
         <li v-if="!hasMore && visible.length > PAGE_SIZE" class="end-mark">
           <span>— всё —</span>
         </li>
@@ -90,23 +83,21 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
-import { useAuthStore, bffHeaders } from '../stores/auth'
+import { bffHeaders } from '../stores/auth'
 import type { Contact } from '@chat/shared'
 
-const router  = useRouter()
-const auth    = useAuthStore()
-const API     = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+const router = useRouter()
+const API    = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 
 const contacts     = ref<Contact[]>([])
 const loading      = ref(true)
 const query        = ref('')
 const searchFocused = ref(false)
 const page         = ref(1)
+const listEl       = ref<HTMLElement | null>(null)
 const sentinel     = ref<HTMLElement | null>(null)
 
 const PAGE_SIZE = 20
-
-const myInitials = computed(() => (auth.user?.username ?? '?')[0].toUpperCase())
 
 const COLORS = [
   '#6366f1','#8b5cf6','#ec4899','#f97316',
@@ -131,18 +122,29 @@ function contactInitials(c: Contact): string {
     : n[0][0].toUpperCase()
 }
 
-// Автосортировка: самые последние контакты (с кем общались) вверху
+function formatTime(ts: number): string {
+  const d    = new Date(ts)
+  const now  = new Date()
+  const diff = Date.now() - ts
+  if (diff < 86_400_000 && d.getDate() === now.getDate())
+    return d.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
+  if (diff < 604_800_000)
+    return d.toLocaleDateString('ru', { weekday: 'short' })
+  return d.toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+}
+
+// Сортируем по created_at убывающе (самые последние вверху)
 const sorted = computed(() =>
   [...contacts.value].sort((a, b) => b.created_at - a.created_at)
 )
 
+// Фильтрация по поисковому запросу
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase()
   if (!q) return sorted.value
   return sorted.value.filter(c =>
     contactName(c).toLowerCase().includes(q) ||
-    (c.username ?? '').toLowerCase().includes(q) ||
-    (c.phone ?? '').includes(q)
+    (c.username ?? '').toLowerCase().includes(q)
   )
 })
 
@@ -150,8 +152,10 @@ const hasMore = computed(() => page.value * PAGE_SIZE < filtered.value.length)
 
 const visible = computed(() => filtered.value.slice(0, page.value * PAGE_SIZE))
 
+// Сброс пагинации при новом поиске
 watch(query, () => { page.value = 1 })
 
+// IntersectionObserver для lazy load
 let observer: IntersectionObserver | null = null
 
 function setupObserver() {
@@ -204,21 +208,9 @@ header {
   flex-shrink: 0;
 }
 
-.header-left { display: flex; align-items: center; gap: 12px; }
-
-.my-avatar {
-  width: 34px; height: 34px;
-  border-radius: 50%;
-  background: var(--accent);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700;
-  color: #fff;
-  cursor: pointer;
-}
-
 h1 { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
 
-.add-btn {
+.compose-btn {
   width: 36px; height: 36px;
   border-radius: 50%;
   background: var(--accent);
@@ -226,7 +218,7 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
   display: flex; align-items: center; justify-content: center;
   transition: opacity .15s;
 }
-.add-btn:active { opacity: .7; }
+.compose-btn:active { opacity: .7; }
 
 /* ── Поиск ─────────────────────────────────────────────────────────────────── */
 .search-wrap {
@@ -247,10 +239,25 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
 }
 
 .search-box.focused { border-color: var(--accent); }
+
 .search-icon { color: var(--muted); flex-shrink: 0; }
-.search-box input { flex: 1; font-size: 14px; color: var(--text); background: none; }
+
+.search-box input {
+  flex: 1;
+  font-size: 14px;
+  color: var(--text);
+  background: none;
+}
+
 .search-box input::placeholder { color: var(--muted); }
-.clear-btn { color: var(--muted); display: flex; align-items: center; padding: 2px; }
+
+.clear-btn {
+  color: var(--muted);
+  display: flex; align-items: center; justify-content: center;
+  padding: 2px;
+  transition: color .15s;
+}
+.clear-btn:hover { color: var(--text); }
 
 /* ── Состояния ─────────────────────────────────────────────────────────────── */
 .center { flex: 1; display: flex; align-items: center; justify-content: center; }
@@ -273,49 +280,74 @@ h1 { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
 }
 .empty-icon { font-size: 48px; }
 .empty p    { font-size: 16px; font-weight: 600; color: var(--text); }
-.empty span { font-size: 13px; margin-bottom: 8px; }
+.empty span { font-size: 13px; }
 
-.add-contact-btn {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--accent); color: #fff;
-  padding: 11px 20px;
-  border-radius: 12px;
-  font-size: 14px; font-weight: 600;
-  margin-top: 4px;
-  transition: opacity .15s;
+/* ── Список чатов ──────────────────────────────────────────────────────────── */
+.list {
+  flex: 1;
+  overflow-y: auto;
+  list-style: none;
 }
-.add-contact-btn:active { opacity: .8; }
 
-/* ── Список ────────────────────────────────────────────────────────────────── */
-.list { flex: 1; overflow-y: auto; list-style: none; }
-
-.list li {
+.chat-item {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 13px 20px;
+  gap: 13px;
+  padding: 12px 20px;
   cursor: pointer;
   border-bottom: 1px solid var(--border);
   transition: background .1s;
 }
 
-.list li:active { background: var(--surface); }
+.chat-item:active { background: var(--surface); }
 
 .avatar {
-  width: 48px; height: 48px;
+  width: 50px; height: 50px;
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 17px; font-weight: 700;
+  font-size: 18px; font-weight: 700;
   color: #fff;
   flex-shrink: 0;
 }
 
-.info { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.name { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.sub  { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 
-.chevron { color: var(--muted); flex-shrink: 0; }
+.top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.name {
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.time {
+  font-size: 11px;
+  color: var(--muted);
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.sub {
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
 .sentinel { height: 1px; }
-.end-mark { text-align: center; padding: 16px; font-size: 12px; color: var(--muted); }
+
+.end-mark {
+  text-align: center;
+  padding: 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
 </style>

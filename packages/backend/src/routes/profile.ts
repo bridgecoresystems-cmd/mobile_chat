@@ -52,6 +52,22 @@ export const profileRoutes = new Elysia({ prefix: "/profile" })
     }
   )
 
+  // PATCH /profile/avatar — обновляет только аватар
+  .patch(
+    "/avatar",
+    async ({ currentUser, body }) => {
+      await db.update(profiles)
+        .set({ avatar_url: body.avatar_url, updated_at: Date.now() })
+        .where(eq(profiles.user_id, currentUser.id))
+      return { ok: true }
+    },
+    {
+      body: t.Object({
+        avatar_url: t.String({ minLength: 1 }),
+      }),
+    }
+  )
+
 // ── Search ────────────────────────────────────────────────────────────────────
 export const searchRoutes = new Elysia({ prefix: "/users" })
   .use(authGuard)

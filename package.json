@@ -3,8 +3,17 @@
   "private": true,
   "workspaces": ["packages/*"],
   "scripts": {
-    "dev": "bun run --cwd packages/backend dev",
-    "dev:backend": "bun run --cwd packages/backend dev",
-    "build:mobile": "bun run --cwd packages/mobile build"
+    "dev":          "concurrently \"bun run dev:backend\" \"bun run dev:mobile\"",
+    "dev:backend":  "bun run --cwd packages/backend dev",
+    "dev:mobile":   "bun run --cwd packages/mobile dev",
+    "build":        "bun run build:mobile",
+    "build:mobile": "bun run --cwd packages/mobile build",
+    "db:generate":  "bun run --cwd packages/backend db:generate",
+    "db:migrate":   "bun run --cwd packages/backend db:migrate",
+    "db:push":      "bun run --cwd packages/backend db:push",
+    "clean":        "rm -rf packages/backend/node_modules packages/mobile/node_modules packages/shared/node_modules node_modules bun.lock"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
   }
 }

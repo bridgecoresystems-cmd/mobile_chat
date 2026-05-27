@@ -46,3 +46,7 @@ input, button, textarea {
 }
 
 button { cursor: pointer; }
+
+/* Invisible scrollbar everywhere (mobile-first) */
+::-webkit-scrollbar { display: none; }
+* { scrollbar-width: none; }
