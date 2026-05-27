@@ -329,6 +329,7 @@ async function scrollBottom() {
 }
 
 watch(messages, scrollBottom, { deep: true })
+watch(typingText, (val) => { if (val) scrollBottom() })
 
 async function loadContactInfo() {
   try {
