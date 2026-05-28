@@ -15,7 +15,6 @@
 
     <div class="card">
       <div class="logo-wrap">
-        <div class="logo-icon">✉️</div>
         <h1>konekt</h1>
       </div>
 
@@ -40,7 +39,14 @@
               autocomplete="current-password"
             />
             <button type="button" class="eye-btn" @click="showPass = !showPass">
-              {{ showPass ? '🙈' : '👁' }}
+              <svg v-if="showPass" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+              <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
             </button>
           </div>
         </div>
@@ -55,7 +61,14 @@
               autocomplete="new-password"
             />
             <button type="button" class="eye-btn" @click="showConfirm = !showConfirm">
-              {{ showConfirm ? '🙈' : '👁' }}
+              <svg v-if="showConfirm" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/>
+                <line x1="1" y1="1" x2="23" y2="23"/>
+              </svg>
+              <svg v-else width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
             </button>
           </div>
           <p v-if="confirm && password !== confirm" class="field-error">{{ t('login_mismatch') }}</p>
@@ -97,14 +110,14 @@ const loading     = ref(false)
 
 // Конверты: разные размеры, позиции, скорости, дрейф по X
 const envelopes = [
-  { id: 1, size: 32, stroke: 1.2, style: { left: '6%',  animationDuration: '9s',  animationDelay: '0s',    '--tx': '12vw',  '--env-op': 0.11 } },
-  { id: 2, size: 18, stroke: 1.4, style: { left: '20%', animationDuration: '13s', animationDelay: '-5s',   '--tx': '-8vw',  '--env-op': 0.07 } },
-  { id: 3, size: 26, stroke: 1.2, style: { left: '42%', animationDuration: '11s', animationDelay: '-2s',   '--tx': '6vw',   '--env-op': 0.09 } },
-  { id: 4, size: 14, stroke: 1.6, style: { left: '58%', animationDuration: '15s', animationDelay: '-8s',   '--tx': '-14vw', '--env-op': 0.06 } },
-  { id: 5, size: 36, stroke: 1.1, style: { left: '72%', animationDuration: '10s', animationDelay: '-3s',   '--tx': '10vw',  '--env-op': 0.08 } },
-  { id: 6, size: 20, stroke: 1.4, style: { left: '85%', animationDuration: '12s', animationDelay: '-7s',   '--tx': '-6vw',  '--env-op': 0.10 } },
-  { id: 7, size: 24, stroke: 1.3, style: { left: '33%', animationDuration: '14s', animationDelay: '-11s',  '--tx': '16vw',  '--env-op': 0.07 } },
-  { id: 8, size: 16, stroke: 1.5, style: { left: '92%', animationDuration: '8s',  animationDelay: '-4s',   '--tx': '-10vw', '--env-op': 0.09 } },
+  { id: 1, size: 32, stroke: 1.2, style: { left: '6%',  animationDuration: '9s',  animationDelay: '0s',    '--tx': '12vw',  '--env-op': 0.35 } },
+  { id: 2, size: 18, stroke: 1.4, style: { left: '20%', animationDuration: '13s', animationDelay: '-5s',   '--tx': '-8vw',  '--env-op': 0.26 } },
+  { id: 3, size: 26, stroke: 1.2, style: { left: '42%', animationDuration: '11s', animationDelay: '-2s',   '--tx': '6vw',   '--env-op': 0.30 } },
+  { id: 4, size: 14, stroke: 1.6, style: { left: '58%', animationDuration: '15s', animationDelay: '-8s',   '--tx': '-14vw', '--env-op': 0.22 } },
+  { id: 5, size: 36, stroke: 1.1, style: { left: '72%', animationDuration: '10s', animationDelay: '-3s',   '--tx': '10vw',  '--env-op': 0.28 } },
+  { id: 6, size: 20, stroke: 1.4, style: { left: '85%', animationDuration: '12s', animationDelay: '-7s',   '--tx': '-6vw',  '--env-op': 0.32 } },
+  { id: 7, size: 24, stroke: 1.3, style: { left: '33%', animationDuration: '14s', animationDelay: '-11s',  '--tx': '16vw',  '--env-op': 0.26 } },
+  { id: 8, size: 16, stroke: 1.5, style: { left: '92%', animationDuration: '8s',  animationDelay: '-4s',   '--tx': '-10vw', '--env-op': 0.30 } },
 ]
 
 async function submit() {

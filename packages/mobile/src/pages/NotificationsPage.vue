@@ -124,11 +124,22 @@ onMounted(fetch_)
 header {
   padding: 16px 20px;
   padding-top: calc(16px + env(safe-area-inset-top));
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  z-index: 10;
 }
 
-h1 { font-size: 18px; font-weight: 800; }
+h1 {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  background: linear-gradient(135deg, var(--text), var(--muted));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 
 .center { flex: 1; display: flex; align-items: center; justify-content: center; }
 

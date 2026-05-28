@@ -202,8 +202,12 @@ header {
   justify-content: space-between;
   padding: 16px 20px;
   padding-top: calc(16px + env(safe-area-inset-top));
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  z-index: 10;
 }
 
 .header-left { display: flex; align-items: center; gap: 12px; }
@@ -211,24 +215,40 @@ header {
 .my-avatar {
   width: 34px; height: 34px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--accent-gradient);
   display: flex; align-items: center; justify-content: center;
-  font-size: 13px; font-weight: 700;
+  font-size: 13px; font-weight: 800;
   color: #fff;
   cursor: pointer;
+  box-shadow: 0 4px 10px rgba(var(--accent-rgb), 0.2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.my-avatar:active {
+  transform: scale(0.9);
 }
 
-h1 { font-size: 22px; font-weight: 800; letter-spacing: -.3px; }
+h1 {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.8px;
+  background: linear-gradient(135deg, var(--text), var(--muted));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 
 .add-btn {
   width: 36px; height: 36px;
   border-radius: 50%;
-  background: var(--accent);
-  color: #fff;
+  background: var(--accent-gradient);
+  color: var(--text-inverse);
   display: flex; align-items: center; justify-content: center;
-  transition: opacity .15s;
+  box-shadow: 0 4px 10px rgba(var(--accent-rgb), 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
-.add-btn:active { opacity: .7; }
+.add-btn:active {
+  transform: scale(0.9);
+}
 
 /* ── Поиск ─────────────────────────────────────────────────────────────────── */
 .search-wrap {
