@@ -154,7 +154,7 @@ const app = new Elysia()
       const file        = body.file as File
       const contentType = file.type || "image/jpeg"
 
-      const qs        = `content_type=${encodeURIComponent(contentType)}&token=${chatToken}`
+      const qs        = `content_type=${contentType}&token=${chatToken}`
       const uploadRes = await fetch(`${CHAT_ENGINE}/upload?${qs}`, {
         method:  "POST",
         headers: { "content-type": contentType },

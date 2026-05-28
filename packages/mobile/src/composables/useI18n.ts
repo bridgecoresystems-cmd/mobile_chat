@@ -7,7 +7,7 @@ const dict = {
     // navbar
     nav_chats:          'Чаты',
     nav_contacts:       'Контакты',
-    nav_calls:          'Звонки',
+    nav_calls:          'Уведомления',
     nav_profile:        'Профиль',
     // chats page
     chats_title:        'Чаты',
@@ -95,7 +95,7 @@ const dict = {
   en: {
     nav_chats:          'Chats',
     nav_contacts:       'Contacts',
-    nav_calls:          'Calls',
+    nav_calls:          'Notifications',
     nav_profile:        'Profile',
     chats_title:        'Chats',
     chats_search_ph:    'Search chats...',
@@ -179,7 +179,7 @@ const dict = {
   tk: {
     nav_chats:          'Çatlar',
     nav_contacts:       'Kontaktlar',
-    nav_calls:          'Jaňlar',
+    nav_calls:          'Habarlamalar',
     nav_profile:        'Profil',
     chats_title:        'Çatlar',
     chats_search_ph:    'Çat gözle...',

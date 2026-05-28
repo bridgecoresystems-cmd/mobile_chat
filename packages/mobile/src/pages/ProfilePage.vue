@@ -130,6 +130,42 @@
 
       <div class="footer">
         <button class="logout-btn" @click="logout">{{ t('profile_logout') }}</button>
+
+        <!-- Брендинг -->
+        <button class="brand-btn" @click="showAbout = true">
+          <span class="brand-name">BridgeCore <strong>SYSTEMS</strong></span>
+          <span class="brand-version">v{{ APP_VERSION }}</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Модалка «О приложении» -->
+    <div v-if="showAbout" class="about-overlay" @click.self="showAbout = false">
+      <div class="about-modal">
+        <div class="about-logo">💬</div>
+        <h2>BridgeCore Chat</h2>
+        <p class="about-tagline">Свободное общение без границ</p>
+
+        <div class="about-desc">
+          <p>Мессенджер для тех, кто ценит приватность и скорость. Мгновенная доставка сообщений, обмен фото, групповые чаты — всё это работает на открытом протоколе, без лишних посредников.</p>
+        </div>
+
+        <div class="about-meta">
+          <div class="about-row">
+            <span>Версия</span>
+            <span>{{ APP_VERSION }}</span>
+          </div>
+          <div class="about-row">
+            <span>Разработчик</span>
+            <span>BridgeCore SYSTEMS</span>
+          </div>
+          <div class="about-row">
+            <span>Протокол</span>
+            <span>WebSocket + Protobuf</span>
+          </div>
+        </div>
+
+        <button class="about-close" @click="showAbout = false">Закрыть</button>
       </div>
     </div>
   </AppLayout>
@@ -153,12 +189,15 @@ const { theme, toggleTheme } = useTheme()
 const { myAvatarDataUrl, loadLocalAvatar, syncAvatar, saveLocalAvatar } = useAvatarCache()
 const { lang, t, setLang } = useI18n()
 
+const APP_VERSION = '1.0.0'
+
 const profile        = ref<Profile | null>(null)
 const editing        = ref(false)
 const saving         = ref(false)
 const saveError      = ref('')
 const uploadingAvatar = ref(false)
 const avatarError    = ref('')
+const showAbout      = ref(false)
 const form           = ref({ first_name: '', last_name: '', phone: '' })
 
 const LANGS: { code: Lang; label: string; short: string }[] = [
@@ -433,8 +472,8 @@ input:focus { border-color: var(--accent); }
 }
 .lang-pill.active { background: var(--accent); border-color: var(--accent); color: #fff; }
 
-/* ── Выход ─────────────────────────────────────────────────────────────────── */
-.footer { padding: 24px 20px; margin-top: auto; }
+/* ── Выход и брендинг ──────────────────────────────────────────────────────── */
+.footer { padding: 24px 20px; margin-top: auto; display: flex; flex-direction: column; gap: 16px; }
 
 .logout-btn {
   width: 100%; padding: 13px; border-radius: 10px;
@@ -442,4 +481,88 @@ input:focus { border-color: var(--accent); }
   font-weight: 600; font-size: 15px; transition: background .15s;
 }
 .logout-btn:active { background: rgba(239,68,68,.08); }
+
+.brand-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; padding: 8px;
+  opacity: .45; transition: opacity .15s;
+}
+.brand-btn:active { opacity: .7; }
+
+.brand-name {
+  font-size: 12px; letter-spacing: .4px; color: var(--muted);
+}
+.brand-name strong { font-weight: 800; color: var(--accent); }
+
+.brand-version {
+  font-size: 11px; color: var(--muted);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; padding: 1px 6px;
+}
+
+/* ── Модалка «О приложении» ────────────────────────────────────────────────── */
+.about-overlay {
+  position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,.6);
+  display: flex; align-items: flex-end; justify-content: center;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.about-modal {
+  width: 100%; max-width: 480px;
+  background: var(--surface);
+  border-radius: 24px 24px 0 0;
+  padding: 32px 24px 28px;
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px;
+  animation: slideUp .25s ease;
+}
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+.about-logo { font-size: 52px; line-height: 1; }
+
+.about-modal h2 {
+  font-size: 22px; font-weight: 900; letter-spacing: -.4px;
+  color: var(--accent);
+}
+
+.about-tagline {
+  font-size: 14px; color: var(--muted); font-weight: 500;
+  margin-top: -4px;
+}
+
+.about-desc {
+  background: var(--bg); border-radius: 12px; padding: 14px 16px;
+  width: 100%; margin-top: 4px;
+}
+.about-desc p {
+  font-size: 13px; line-height: 1.6; color: var(--muted); text-align: center;
+}
+
+.about-meta {
+  width: 100%;
+  border: 1px solid var(--border); border-radius: 12px;
+  overflow: hidden;
+}
+
+.about-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 11px 16px; font-size: 13px;
+  border-bottom: 1px solid var(--border);
+}
+.about-row:last-child { border-bottom: none; }
+.about-row span:first-child { color: var(--muted); }
+.about-row span:last-child  { font-weight: 600; }
+
+.about-close {
+  width: 100%; padding: 14px; border-radius: 12px;
+  background: var(--accent); color: #fff;
+  font-weight: 700; font-size: 15px;
+  margin-top: 4px; transition: opacity .15s;
+}
+.about-close:active { opacity: .8; }
 </style>
