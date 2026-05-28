@@ -133,7 +133,7 @@
 
         <!-- Брендинг -->
         <button class="brand-btn" @click="showAbout = true">
-          <span class="brand-name">BridgeCore <strong>SYSTEMS</strong></span>
+          <span class="brand-name">konekt</span>
           <span class="brand-version">v{{ APP_VERSION }}</span>
         </button>
       </div>
@@ -143,7 +143,7 @@
     <div v-if="showAbout" class="about-overlay" @click.self="showAbout = false">
       <div class="about-modal">
         <div class="about-logo">💬</div>
-        <h2>BridgeCore Chat</h2>
+        <h2>konekt</h2>
         <p class="about-tagline">Свободное общение без границ</p>
 
         <div class="about-desc">
@@ -157,7 +157,7 @@
           </div>
           <div class="about-row">
             <span>Разработчик</span>
-            <span>BridgeCore SYSTEMS</span>
+            <span>konekt</span>
           </div>
           <div class="about-row">
             <span>Протокол</span>

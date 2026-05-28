@@ -107,7 +107,7 @@ export function useChat(roomId: string) {
   }
 
   function scheduleReconnect() {
-    if (reconnectTimer) return
+    if (!savedToken || reconnectTimer) return
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null
       connectWs()
@@ -322,6 +322,7 @@ export function useChat(roomId: string) {
   }
 
   function disconnect() {
+    savedToken = ""
     if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
     stopTyping()
     ws?.close()
@@ -334,10 +335,19 @@ export function useChat(roomId: string) {
       connectWs()
     }
   }
+
+  function handleLogout() {
+    savedToken = ""
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
+    ws?.close()
+  }
+
   document.addEventListener("visibilitychange", handleVisibility)
+  window.addEventListener("chat:logout", handleLogout)
 
   onUnmounted(() => {
     document.removeEventListener("visibilitychange", handleVisibility)
+    window.removeEventListener("chat:logout", handleLogout)
     disconnect()
   })
 

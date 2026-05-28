@@ -59,7 +59,7 @@
                   v-if="msg.photoUrl && !msg.deleted"
                   :src="msg.photoUrl"
                   class="photo"
-                  loading="lazy"
+                  @load="onImageLoad"
                   @click="openPhoto(msg.photoUrl!)"
                 />
                 <!-- Текст -->
@@ -326,9 +326,22 @@ function onInput() {
   if (!editingMsg.value) chat.sendTyping()
 }
 
+function isNearBottom(): boolean {
+  if (!bodyEl.value) return true
+  const { scrollTop, scrollHeight, clientHeight } = bodyEl.value
+  return scrollHeight - scrollTop - clientHeight < 150
+}
+
 async function scrollBottom() {
   await nextTick()
   if (bodyEl.value) bodyEl.value.scrollTop = bodyEl.value.scrollHeight
+}
+
+// Когда картинка загрузилась — подскролливаем если были внизу
+function onImageLoad() {
+  if (isNearBottom()) {
+    if (bodyEl.value) bodyEl.value.scrollTop = bodyEl.value.scrollHeight
+  }
 }
 
 watch(messages, scrollBottom, { deep: true })
@@ -505,8 +518,10 @@ header {
 
 .photo {
   max-width: 220px; max-height: 220px;
+  min-height: 80px;
   border-radius: 10px; display: block;
   cursor: pointer; object-fit: cover;
+  background: var(--border);
 }
 
 .text { font-size: 14px; line-height: 1.45; word-break: break-word; }

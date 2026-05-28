@@ -82,6 +82,7 @@ export function useAuthStore() {
     state.token      = null
     state.chat_token = null
     localStorage.removeItem("auth")
+    window.dispatchEvent(new Event("chat:logout"))
   }
 
   return {

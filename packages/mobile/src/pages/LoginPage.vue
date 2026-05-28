@@ -3,7 +3,7 @@
     <div class="card">
       <div class="logo-wrap">
         <div class="logo-icon">💬</div>
-        <h1>BridgeCore Chat</h1>
+        <h1>konekt</h1>
       </div>
 
       <div class="tabs">
