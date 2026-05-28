@@ -1,8 +1,21 @@
 <template>
   <div class="page">
+
+    <!-- Летящие конверты (фон) -->
+    <div class="envelopes" aria-hidden="true">
+      <div v-for="e in envelopes" :key="e.id" class="env" :style="e.style">
+        <svg :width="e.size" :height="e.size" viewBox="0 0 24 24" fill="none" stroke="currentColor" :stroke-width="e.stroke">
+          <rect x="2" y="4" width="20" height="16" rx="2.5"/>
+          <polyline points="2,4 12,13.5 22,4"/>
+          <line x1="2" y1="20" x2="8" y2="13"/>
+          <line x1="22" y1="20" x2="16" y2="13"/>
+        </svg>
+      </div>
+    </div>
+
     <div class="card">
       <div class="logo-wrap">
-        <div class="logo-icon">💬</div>
+        <div class="logo-icon">✉️</div>
         <h1>konekt</h1>
       </div>
 
@@ -69,9 +82,9 @@ import { useAuthStore } from '../stores/auth'
 import { registerPushNotifications } from '../composables/usePushNotifications'
 import { useI18n } from '../composables/useI18n'
 
-const router   = useRouter()
-const auth     = useAuthStore()
-const { t }    = useI18n()
+const router = useRouter()
+const auth   = useAuthStore()
+const { t }  = useI18n()
 
 const mode        = ref<'login' | 'register'>('login')
 const username    = ref('')
@@ -81,6 +94,18 @@ const showPass    = ref(false)
 const showConfirm = ref(false)
 const error       = ref('')
 const loading     = ref(false)
+
+// Конверты: разные размеры, позиции, скорости, дрейф по X
+const envelopes = [
+  { id: 1, size: 32, stroke: 1.2, style: { left: '6%',  animationDuration: '9s',  animationDelay: '0s',    '--tx': '12vw',  '--env-op': 0.11 } },
+  { id: 2, size: 18, stroke: 1.4, style: { left: '20%', animationDuration: '13s', animationDelay: '-5s',   '--tx': '-8vw',  '--env-op': 0.07 } },
+  { id: 3, size: 26, stroke: 1.2, style: { left: '42%', animationDuration: '11s', animationDelay: '-2s',   '--tx': '6vw',   '--env-op': 0.09 } },
+  { id: 4, size: 14, stroke: 1.6, style: { left: '58%', animationDuration: '15s', animationDelay: '-8s',   '--tx': '-14vw', '--env-op': 0.06 } },
+  { id: 5, size: 36, stroke: 1.1, style: { left: '72%', animationDuration: '10s', animationDelay: '-3s',   '--tx': '10vw',  '--env-op': 0.08 } },
+  { id: 6, size: 20, stroke: 1.4, style: { left: '85%', animationDuration: '12s', animationDelay: '-7s',   '--tx': '-6vw',  '--env-op': 0.10 } },
+  { id: 7, size: 24, stroke: 1.3, style: { left: '33%', animationDuration: '14s', animationDelay: '-11s',  '--tx': '16vw',  '--env-op': 0.07 } },
+  { id: 8, size: 16, stroke: 1.5, style: { left: '92%', animationDuration: '8s',  animationDelay: '-4s',   '--tx': '-10vw', '--env-op': 0.09 } },
+]
 
 async function submit() {
   error.value   = ''
@@ -92,11 +117,9 @@ async function submit() {
       if (password.value !== confirm.value) return
       await auth.register(username.value, password.value)
     }
-    // Регистрируем FCM токен (только на нативном устройстве)
     if (auth.chat_token) {
       registerPushNotifications(auth.chat_token).catch(() => {})
     }
-    // После входа — роутер сам проверит профиль и перенаправит на /setup если нужно
     router.push('/contacts')
   } catch (e: any) {
     error.value = e.message
@@ -108,15 +131,56 @@ async function submit() {
 
 <style scoped>
 .page {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
   min-height: 100dvh;
   padding: 24px;
   background: var(--bg);
+  overflow: hidden;
 }
 
+/* ── Конверты ──────────────────────────────────────────────────────────────── */
+.envelopes {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.env {
+  position: absolute;
+  bottom: -60px;
+  color: var(--accent);
+  animation: flyUp linear infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes flyUp {
+  0% {
+    transform: translateY(0) translateX(0) rotate(-8deg);
+    opacity: 0;
+  }
+  8% {
+    opacity: var(--env-op, .1);
+  }
+  45% {
+    transform: translateY(-50vh) translateX(calc(var(--tx, 0) * .5)) rotate(4deg);
+  }
+  88% {
+    opacity: var(--env-op, .1);
+  }
+  100% {
+    transform: translateY(-115vh) translateX(var(--tx, 0)) rotate(-6deg);
+    opacity: 0;
+  }
+}
+
+/* ── Карточка ──────────────────────────────────────────────────────────────── */
 .card {
+  position: relative;
+  z-index: 1;
   width: 100%;
   max-width: 380px;
   background: var(--surface);
@@ -126,6 +190,7 @@ async function submit() {
   display: flex;
   flex-direction: column;
   gap: 24px;
+  box-shadow: 0 8px 40px rgba(0,0,0,.18);
 }
 
 .logo-wrap {
@@ -138,10 +203,10 @@ async function submit() {
 .logo-icon { font-size: 36px; }
 
 h1 {
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 24px;
+  font-weight: 900;
   color: var(--accent);
-  letter-spacing: -0.3px;
+  letter-spacing: -0.5px;
 }
 
 .tabs {

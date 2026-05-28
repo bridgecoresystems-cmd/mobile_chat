@@ -133,6 +133,13 @@ export function useChat(roomId: string) {
           timestamp: Date.now(),
         }),
       })
+      // Ack all historical messages from others — marks them as read on sender's side
+      const toAck = messages.value.filter(m => !m.mine && !m.deleted)
+      console.log(`[useChat] onopen: sending ${toAck.length} historical acks, msgs total=${messages.value.length}`)
+      for (const msg of toAck) {
+        console.log(`[useChat] acking id=${msg.id}`)
+        sendEnvelope({ ack: AckMsg.create({ message_id: Number(msg.id), user_id: myUserId, room_id: roomId }) })
+      }
     }
     ws.onclose = () => {
       isConnected.value = false
@@ -172,7 +179,9 @@ export function useChat(roomId: string) {
       if (env.ack) {
         // A peer acknowledged one of my messages — mark it as read
         const mid = String(env.ack.message_id)
+        console.log(`[useChat] received ack mid=${mid}, searching in ${messages.value.length} msgs`)
         const msg = messages.value.find(m => m.id === mid && m.mine)
+        console.log(`[useChat] ack match:`, msg ? `found id=${msg.id}` : `NOT FOUND (sample ids: ${messages.value.slice(0,3).map(m=>m.id).join(',')})`)
         if (msg) msg.read = true
       }
 
