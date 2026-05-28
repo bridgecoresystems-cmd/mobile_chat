@@ -13,7 +13,7 @@
         <input
           ref="inputRef"
           v-model="query"
-          placeholder="Имя, фамилия или телефон..."
+          :placeholder="t('search_ph')"
           @input="onInput"
         />
         <button v-if="query" class="clear" @click="query = ''; results = []">✕</button>
@@ -23,14 +23,14 @@
     <div v-if="loading" class="center"><div class="spinner" /></div>
 
     <div v-else-if="query.length >= 2 && !results.length" class="empty">
-      <p>Никого не найдено</p>
-      <span>Попробуйте другой запрос</span>
+      <p>{{ t('search_nf') }}</p>
+      <span>{{ t('search_nf_sub') }}</span>
     </div>
 
     <div v-else-if="!query" class="empty">
       <div class="empty-icon">🔍</div>
-      <p>Поиск пользователей</p>
-      <span>Введите имя, фамилию или телефон</span>
+      <p>{{ t('search_title') }}</p>
+      <span>{{ t('search_title_sub') }}</span>
     </div>
 
     <ul v-else class="list">
@@ -46,7 +46,7 @@
           :disabled="adding.has(user.id)"
           @click="addContact(user)"
         >
-          {{ added.has(user.id) ? '✓' : adding.has(user.id) ? '...' : 'Добавить' }}
+          {{ added.has(user.id) ? '✓' : adding.has(user.id) ? '...' : t('search_add') }}
         </button>
       </li>
     </ul>
@@ -57,10 +57,12 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { bffHeaders } from '../stores/auth'
+import { useI18n } from '../composables/useI18n'
 import type { SearchUser } from '@chat/shared'
 
 const router  = useRouter()
 const API     = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+const { t }   = useI18n()
 const inputRef = ref<HTMLInputElement | null>(null)
 const query    = ref('')
 const results  = ref<SearchUser[]>([])

@@ -2,15 +2,15 @@
   <AppLayout>
     <div class="page">
       <header>
-        <h1>Уведомления</h1>
+        <h1>{{ t('notif_title') }}</h1>
       </header>
 
       <div v-if="loading" class="center"><div class="spinner" /></div>
 
       <div v-else-if="!notifications.length" class="empty">
         <div class="empty-icon">🔔</div>
-        <p>Нет уведомлений</p>
-        <span>Здесь появятся запросы в контакты</span>
+        <p>{{ t('notif_empty') }}</p>
+        <span>{{ t('notif_empty_sub') }}</span>
       </div>
 
       <ul v-else class="list">
@@ -18,7 +18,7 @@
           <div class="avatar">{{ senderInitials(n) }}</div>
           <div class="info">
             <span class="name">{{ senderName(n) }}</span>
-            <span class="sub">хочет добавить вас в контакты</span>
+            <span class="sub">{{ t('notif_wants') }}</span>
             <span class="time">{{ formatTime(n.created_at) }}</span>
           </div>
 
@@ -32,7 +32,7 @@
           </div>
 
           <div v-else class="status-chip" :class="n.status">
-            {{ n.status === 'accepted' ? 'Принято' : 'Отклонено' }}
+            {{ n.status === 'accepted' ? t('notif_accepted') : t('notif_rejected') }}
           </div>
         </li>
       </ul>
@@ -45,9 +45,11 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
 import { bffHeaders } from '../stores/auth'
+import { useI18n } from '../composables/useI18n'
 import type { Notification } from '@chat/shared'
 
 const router        = useRouter()
+const { t, locale } = useI18n()
 const API           = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 const notifications = ref<Notification[]>([])
 const loading       = ref(true)
@@ -104,13 +106,13 @@ function senderInitials(n: Notification) {
 }
 
 function formatTime(ts: number) {
-  const d = new Date(ts)
-  const now = Date.now()
-  const diff = now - ts
-  if (diff < 60_000)  return 'только что'
-  if (diff < 3_600_000) return `${Math.floor(diff / 60_000)} мин назад`
-  if (diff < 86_400_000) return d.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
-  return d.toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+  const d    = new Date(ts)
+  const diff = Date.now() - ts
+  const lc   = locale()
+  if (diff < 60_000)     return t('notif_just_now')
+  if (diff < 3_600_000)  return t('notif_min_ago', { n: String(Math.floor(diff / 60_000)) })
+  if (diff < 86_400_000) return d.toLocaleTimeString(lc, { hour: '2-digit', minute: '2-digit' })
+  return d.toLocaleDateString(lc, { day: 'numeric', month: 'short' })
 }
 
 onMounted(fetch_)

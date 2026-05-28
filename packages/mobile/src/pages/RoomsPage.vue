@@ -5,8 +5,8 @@
       <button class="icon-btn" @click="showCreate = true" title="Новый чат">＋</button>
     </header>
 
-    <div v-if="loading" class="center muted">Загрузка...</div>
-    <div v-else-if="!rooms.length" class="center muted">Нет чатов. Создай первый!</div>
+    <div v-if="loading" class="center muted">{{ t('rooms_loading') }}</div>
+    <div v-else-if="!rooms.length" class="center muted">{{ t('rooms_empty') }}</div>
 
     <ul v-else class="room-list">
       <li v-for="room in rooms" :key="room.id" @click="goToChat(room.id)">
@@ -21,12 +21,12 @@
     <!-- Create room modal -->
     <div v-if="showCreate" class="overlay" @click.self="showCreate = false">
       <div class="modal">
-        <h2>Новый чат</h2>
-        <input v-model="newRoomName" placeholder="Название" @keyup.enter="createRoom" />
-        <p class="hint">Участники могут подключиться по ID комнаты</p>
+        <h2>{{ t('rooms_new') }}</h2>
+        <input v-model="newRoomName" :placeholder="t('rooms_name_ph')" @keyup.enter="createRoom" />
+        <p class="hint">{{ t('rooms_hint') }}</p>
         <div class="modal-actions">
-          <button @click="showCreate = false">Отмена</button>
-          <button class="btn-primary" @click="createRoom" :disabled="!newRoomName.trim()">Создать</button>
+          <button @click="showCreate = false">{{ t('profile_cancel') }}</button>
+          <button class="btn-primary" @click="createRoom" :disabled="!newRoomName.trim()">{{ t('rooms_create') }}</button>
         </div>
       </div>
     </div>
@@ -37,11 +37,13 @@
 import { ref, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import { useAuthStore, bffHeaders } from "../stores/auth"
+import { useI18n } from "../composables/useI18n"
 import type { Room } from "@chat/shared"
 
 const API    = import.meta.env.VITE_API_URL ?? "http://localhost:3001"
 const router = useRouter()
 const auth   = useAuthStore()
+const { t }  = useI18n()
 
 const rooms       = ref<Room[]>([])
 const loading     = ref(true)

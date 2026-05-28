@@ -7,18 +7,18 @@
       </div>
 
       <div class="tabs">
-        <button :class="{ active: mode === 'login' }"    @click="mode = 'login'">Войти</button>
-        <button :class="{ active: mode === 'register' }" @click="mode = 'register'">Регистрация</button>
+        <button :class="{ active: mode === 'login' }"    @click="mode = 'login'">{{ t('login_tab') }}</button>
+        <button :class="{ active: mode === 'register' }" @click="mode = 'register'">{{ t('login_register_tab') }}</button>
       </div>
 
       <form @submit.prevent="submit">
         <div class="field">
-          <label>Имя пользователя</label>
+          <label>{{ t('login_username') }}</label>
           <input v-model="username" placeholder="username" autocomplete="username" />
         </div>
 
         <div class="field">
-          <label>Пароль</label>
+          <label>{{ t('login_password') }}</label>
           <div class="input-wrap">
             <input
               v-model="password"
@@ -33,7 +33,7 @@
         </div>
 
         <div v-if="mode === 'register'" class="field">
-          <label>Повторите пароль</label>
+          <label>{{ t('login_confirm') }}</label>
           <div class="input-wrap">
             <input
               v-model="confirm"
@@ -45,7 +45,7 @@
               {{ showConfirm ? '🙈' : '👁' }}
             </button>
           </div>
-          <p v-if="confirm && password !== confirm" class="field-error">Пароли не совпадают</p>
+          <p v-if="confirm && password !== confirm" class="field-error">{{ t('login_mismatch') }}</p>
         </div>
 
         <p v-if="error" class="error">{{ error }}</p>
@@ -55,7 +55,7 @@
           class="btn-primary"
           :disabled="loading || (mode === 'register' && password !== confirm)"
         >
-          {{ loading ? '...' : mode === 'login' ? 'Войти' : 'Зарегистрироваться' }}
+          {{ loading ? '...' : mode === 'login' ? t('login_submit') : t('login_register_btn') }}
         </button>
       </form>
     </div>
@@ -67,9 +67,11 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
 import { registerPushNotifications } from '../composables/usePushNotifications'
+import { useI18n } from '../composables/useI18n'
 
-const router = useRouter()
-const auth   = useAuthStore()
+const router   = useRouter()
+const auth     = useAuthStore()
+const { t }    = useI18n()
 
 const mode        = ref<'login' | 'register'>('login')
 const username    = ref('')

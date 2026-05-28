@@ -4,29 +4,29 @@
       <div class="head">
         <div class="avatar">{{ initials }}</div>
         <div>
-          <h2>Заполните профиль</h2>
-          <p class="sub">Это нужно чтобы вас могли найти</p>
+          <h2>{{ t('setup_title') }}</h2>
+          <p class="sub">{{ t('setup_sub') }}</p>
         </div>
       </div>
 
       <form @submit.prevent="submit">
         <div class="field">
-          <label>Имя</label>
-          <input v-model="firstName" placeholder="Батыр" />
+          <label>{{ t('profile_fname') }}</label>
+          <input v-model="firstName" :placeholder="t('profile_fname')" />
         </div>
         <div class="field">
-          <label>Фамилия</label>
-          <input v-model="lastName" placeholder="Акмурадов" />
+          <label>{{ t('profile_lname') }}</label>
+          <input v-model="lastName" :placeholder="t('profile_lname')" />
         </div>
         <div class="field">
-          <label>Телефон</label>
+          <label>{{ t('profile_phone') }}</label>
           <input v-model="phone" placeholder="+993 65 000000" type="tel" />
         </div>
 
         <p v-if="error" class="error">{{ error }}</p>
 
         <button type="submit" class="btn-primary" :disabled="loading || !valid">
-          {{ loading ? '...' : 'Сохранить и продолжить' }}
+          {{ loading ? '...' : t('setup_save') }}
         </button>
       </form>
     </div>
@@ -37,9 +37,11 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore, bffHeaders } from '../stores/auth'
+import { useI18n } from '../composables/useI18n'
 
 const router = useRouter()
 const auth   = useAuthStore()
+const { t }  = useI18n()
 const API    = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 
 const firstName = ref('')
