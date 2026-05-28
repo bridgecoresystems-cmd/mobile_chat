@@ -43,11 +43,11 @@ export function bffHeaders(opts?: { skipContentType?: boolean }): HeadersInit {
 }
 
 export function useAuthStore() {
-  async function register(username: string, password: string) {
+  async function register(username: string, password: string, email?: string) {
     const res = await fetch(`${API}/auth/register`, {
       method:  "POST",
       headers: { "content-type": "application/json" },
-      body:    JSON.stringify({ username, password }),
+      body:    JSON.stringify({ username, password, email }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error ?? "register failed")

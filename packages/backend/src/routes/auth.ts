@@ -21,18 +21,27 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       })
       if (existing) { set.status = 409; return { error: "username already taken" } }
 
+      if (body.email) {
+        const existingEmail = await db.query.users.findFirst({
+          where: eq(users.email, body.email),
+          columns: { id: true },
+        })
+        if (existingEmail) { set.status = 409; return { error: "email already taken" } }
+      }
+
       const id  = crypto.randomUUID()
       const now = Date.now()
 
       await db.insert(users).values({
         id,
         username:      body.username,
+        email:         body.email ?? null,
         password_hash: await Bun.password.hash(body.password),
         created_at:    now,
       })
 
       return {
-        user:        { id, username: body.username, created_at: now },
+        user:        { id, username: body.username, email: body.email ?? undefined, created_at: now },
         token:       await bffJwt.sign({ sub: id, username: body.username }),
         chat_token:  await signChatJwt(id),
       }
@@ -41,6 +50,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       body: t.Object({
         username: t.String({ minLength: 2, maxLength: 32 }),
         password: t.String({ minLength: 4 }),
+        email:    t.Optional(t.String()),
       }),
     }
   )

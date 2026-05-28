@@ -29,6 +29,11 @@
           <input v-model="username" placeholder="username" autocomplete="username" />
         </div>
 
+        <div v-if="mode === 'register'" class="field">
+          <label>{{ t('login_email') }}</label>
+          <input v-model="email" type="email" placeholder="example@mail.com" autocomplete="email" />
+        </div>
+
         <div class="field">
           <label>{{ t('login_password') }}</label>
           <div class="input-wrap">
@@ -101,6 +106,7 @@ const { t }  = useI18n()
 
 const mode        = ref<'login' | 'register'>('login')
 const username    = ref('')
+const email       = ref('')
 const password    = ref('')
 const confirm     = ref('')
 const showPass    = ref(false)
@@ -128,7 +134,7 @@ async function submit() {
       await auth.login(username.value, password.value)
     } else {
       if (password.value !== confirm.value) return
-      await auth.register(username.value, password.value)
+      await auth.register(username.value, password.value, email.value)
     }
     if (auth.chat_token) {
       registerPushNotifications(auth.chat_token).catch(() => {})

@@ -3,6 +3,7 @@ import { pgTable, text, bigint, boolean } from "drizzle-orm/pg-core"
 export const users = pgTable("users", {
   id:            text("id").primaryKey(),
   username:      text("username").notNull().unique(),
+  email:         text("email").unique(),
   password_hash: text("password_hash").notNull(),
   created_at:    bigint("created_at", { mode: "number" }).notNull(),
 })
