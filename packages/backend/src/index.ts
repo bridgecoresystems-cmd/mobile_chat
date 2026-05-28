@@ -153,23 +153,20 @@ const app = new Elysia()
 
       const file        = body.file as File
       const contentType = file.type || "image/jpeg"
-      const ext         = file.name?.split(".").pop() ?? "jpg"
-      const filename    = `upload_${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
 
-      // Получаем presigned URL от Rust engine (server → engine, без CORS)
-      const qs     = `filename=${encodeURIComponent(filename)}&content_type=${encodeURIComponent(contentType)}&token=${chatToken}`
-      const urlRes = await fetch(`${CHAT_ENGINE}/upload-url?${qs}`)
-      if (!urlRes.ok) { set.status = 502; return { error: "Failed to get upload URL" } }
-      const { upload_url, file_url } = await urlRes.json() as { upload_url: string; file_url: string }
-
-      // Загружаем в R2 со стороны сервера — никакого CORS
-      const uploadRes = await fetch(upload_url, {
-        method:  "PUT",
+      const qs        = `content_type=${encodeURIComponent(contentType)}&token=${chatToken}`
+      const uploadRes = await fetch(`${CHAT_ENGINE}/upload?${qs}`, {
+        method:  "POST",
         headers: { "content-type": contentType },
         body:    file,
       })
-      if (!uploadRes.ok) { set.status = 502; return { error: `R2 upload failed: ${uploadRes.status}` } }
+      if (!uploadRes.ok) {
+        const errBody = await uploadRes.text().catch(() => "")
+        console.error(`[upload] engine upload failed: ${uploadRes.status} ${errBody}`)
+        set.status = 502; return { error: "upload failed" }
+      }
 
+      const { file_url } = await uploadRes.json() as { file_url: string }
       return { file_url }
     },
     {

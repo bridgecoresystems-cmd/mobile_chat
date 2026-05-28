@@ -12,7 +12,7 @@
           <p class="peer-name">{{ peerName }}</p>
           <span class="status" :class="{ online: peerIsOnline }">
             <span class="dot" />
-            {{ peerIsOnline ? 'онлайн' : 'не в сети' }}
+            {{ peerIsOnline ? t('chat_online') : t('chat_offline') }}
           </span>
         </div>
       </div>
@@ -21,8 +21,8 @@
     <div class="body" ref="bodyEl">
       <div v-if="!messages.length && isConnected" class="empty">
         <div class="empty-icon">✨</div>
-        <p>История сообщений пуста</p>
-        <span>Напишите первое сообщение</span>
+        <p>{{ t('chat_empty') }}</p>
+        <span>{{ t('chat_empty_sub') }}</span>
       </div>
 
       <template v-else>
@@ -63,7 +63,7 @@
                   @click="openPhoto(msg.photoUrl!)"
                 />
                 <!-- Текст -->
-                <p v-else class="text">{{ msg.deleted ? 'Сообщение удалено' : msg.text }}</p>
+                <p v-else class="text">{{ msg.deleted ? t('chat_deleted') : msg.text }}</p>
 
                 <div class="time">
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -125,7 +125,7 @@
         <textarea
           v-model="draft"
           class="textarea"
-          :placeholder="editingMsg ? 'Редактировать сообщение...' : 'Написать сообщение...'"
+          :placeholder="editingMsg ? t('chat_edit_ph') : t('chat_placeholder')"
           rows="1"
           :disabled="!isConnected"
           @keydown="onKey"
@@ -156,8 +156,11 @@ import { ref, watch, computed, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, bffHeaders } from '../stores/auth'
 import { useChat } from '../composables/useChat'
+import { useI18n } from '../composables/useI18n'
 import type { Contact } from '@chat/shared'
 import type { Message } from '../composables/useChat'
+
+const { t, locale } = useI18n()
 
 const route  = useRoute()
 const router = useRouter()
@@ -200,7 +203,7 @@ const peerInitials = computed(() => {
 })
 
 const typingText = computed(() =>
-  typingUsers.value.size > 0 ? `${peerName.value} печатает...` : ''
+  typingUsers.value.size > 0 ? t('chat_typing', { name: peerName.value }) : ''
 )
 
 // ── Группировка и разделители по датам ───────────────────────────────────────
@@ -216,9 +219,9 @@ function formatDateSep(ts: number) {
   const d   = new Date(ts)
   const now = new Date()
   const yest = new Date(now); yest.setDate(now.getDate() - 1)
-  if (sameDay(ts, now.getTime()))  return 'Сегодня'
-  if (sameDay(ts, yest.getTime())) return 'Вчера'
-  return d.toLocaleDateString('ru', {
+  if (sameDay(ts, now.getTime()))  return t('chat_today')
+  if (sameDay(ts, yest.getTime())) return t('chat_yesterday')
+  return d.toLocaleDateString(locale(), {
     day: 'numeric', month: 'long',
     ...(d.getFullYear() !== now.getFullYear() ? { year: 'numeric' } : {}),
   })
@@ -250,7 +253,7 @@ const annotatedMessages = computed(() => {
 // ── Форматирование времени ────────────────────────────────────────────────────
 
 function formatTime(ts: number) {
-  return new Date(ts).toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
+  return new Date(ts).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })
 }
 
 // ── Отправка / редактирование / удаление ─────────────────────────────────────
@@ -279,7 +282,7 @@ function cancelEdit() {
 }
 
 function confirmDelete(msgId: string) {
-  if (!confirm('Удалить сообщение?')) return
+  if (!confirm(t('chat_del_confirm'))) return
   chat.deleteMessage(msgId)
   const msg = messages.value.find(m => m.id === msgId)
   if (msg) { msg.deleted = true; msg.text = '' }
@@ -309,7 +312,7 @@ async function onFileChange(e: Event) {
     chat.sendPhoto(file_url)
   } catch (err) {
     console.error('Photo upload failed:', err)
-    alert('Не удалось загрузить фото')
+    alert(t('chat_photo_err'))
   } finally {
     uploading.value = false
   }

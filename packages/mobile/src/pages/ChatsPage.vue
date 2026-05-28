@@ -2,7 +2,7 @@
   <AppLayout>
     <div class="page">
       <header>
-        <h1>Чаты</h1>
+        <h1>{{ t('chats_title') }}</h1>
         <button class="compose-btn" @click="router.push('/search')" title="Новый чат">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
@@ -18,7 +18,7 @@
           </svg>
           <input
             v-model="query"
-            placeholder="Поиск чата..."
+            :placeholder="t('chats_search_ph')"
             @focus="searchFocused = true"
             @blur="searchFocused = false"
           />
@@ -36,15 +36,15 @@
       <!-- Нет контактов вообще -->
       <div v-else-if="!contacts.length" class="empty">
         <div class="empty-icon">💬</div>
-        <p>Нет чатов</p>
-        <span>Найди людей через поиск контактов</span>
+        <p>{{ t('chats_empty') }}</p>
+        <span>{{ t('chats_empty_sub') }}</span>
       </div>
 
       <!-- Поиск ничего не нашёл -->
       <div v-else-if="query && !filtered.length" class="empty">
         <div class="empty-icon">🔍</div>
-        <p>Чат не найден</p>
-        <span>«{{ query }}» — нет такого чата</span>
+        <p>{{ t('chats_nf') }}</p>
+        <span>{{ t('chats_nf_sub', { q: query }) }}</span>
       </div>
 
       <!-- Список чатов -->
@@ -72,7 +72,7 @@
 
         <!-- Конец списка -->
         <li v-if="!hasMore && visible.length > PAGE_SIZE" class="end-mark">
-          <span>— всё —</span>
+          <span>{{ t('chats_end') }}</span>
         </li>
       </ul>
     </div>
@@ -84,10 +84,12 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
 import { bffHeaders } from '../stores/auth'
+import { useI18n } from '../composables/useI18n'
 import type { Contact } from '@chat/shared'
 
-const router = useRouter()
-const API    = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+const router    = useRouter()
+const API       = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+const { t, locale } = useI18n()
 
 const contacts     = ref<Contact[]>([])
 const loading      = ref(true)
@@ -126,11 +128,12 @@ function formatTime(ts: number): string {
   const d    = new Date(ts)
   const now  = new Date()
   const diff = Date.now() - ts
+  const lc   = locale()
   if (diff < 86_400_000 && d.getDate() === now.getDate())
-    return d.toLocaleTimeString('ru', { hour: '2-digit', minute: '2-digit' })
+    return d.toLocaleTimeString(lc, { hour: '2-digit', minute: '2-digit' })
   if (diff < 604_800_000)
-    return d.toLocaleDateString('ru', { weekday: 'short' })
-  return d.toLocaleDateString('ru', { day: 'numeric', month: 'short' })
+    return d.toLocaleDateString(lc, { weekday: 'short' })
+  return d.toLocaleDateString(lc, { day: 'numeric', month: 'short' })
 }
 
 // Сортируем по created_at убывающе (самые последние вверху)

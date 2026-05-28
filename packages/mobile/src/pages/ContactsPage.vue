@@ -4,7 +4,7 @@
       <header>
         <div class="header-left">
           <div class="my-avatar" @click="router.push('/profile')">{{ myInitials }}</div>
-          <h1>Контакты</h1>
+          <h1>{{ t('contacts_title') }}</h1>
         </div>
         <button class="add-btn" @click="router.push('/search')" title="Найти пользователя">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -21,7 +21,7 @@
           </svg>
           <input
             v-model="query"
-            placeholder="Поиск контакта..."
+            :placeholder="t('contacts_search_ph')"
             @focus="searchFocused = true"
             @blur="searchFocused = false"
           />
@@ -39,20 +39,20 @@
       <!-- Нет контактов вообще -->
       <div v-else-if="!contacts.length" class="empty">
         <div class="empty-icon">👥</div>
-        <p>Нет контактов</p>
-        <span>Нажми «+» чтобы найти людей</span>
+        <p>{{ t('contacts_empty') }}</p>
+        <span>{{ t('contacts_empty_sub') }}</span>
       </div>
 
       <!-- Поиск ничего не нашёл -->
       <div v-else-if="query && !filtered.length" class="empty">
         <div class="empty-icon">🔍</div>
-        <p>Контакт не найден</p>
-        <span>«{{ query }}» не в списке</span>
+        <p>{{ t('contacts_nf') }}</p>
+        <span>{{ t('contacts_nf_sub', { q: query }) }}</span>
         <button class="add-contact-btn" @click="router.push('/search')">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          Добавить контакт
+          {{ t('contacts_add') }}
         </button>
       </div>
 
@@ -79,7 +79,7 @@
         <li v-if="hasMore" ref="sentinel" class="sentinel" />
 
         <li v-if="!hasMore && visible.length > PAGE_SIZE" class="end-mark">
-          <span>— всё —</span>
+          <span>{{ t('contacts_end') }}</span>
         </li>
       </ul>
     </div>
@@ -91,11 +91,13 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
 import { useAuthStore, bffHeaders } from '../stores/auth'
+import { useI18n } from '../composables/useI18n'
 import type { Contact } from '@chat/shared'
 
-const router  = useRouter()
-const auth    = useAuthStore()
-const API     = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+const router      = useRouter()
+const auth        = useAuthStore()
+const API         = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+const { t } = useI18n()
 
 const contacts     = ref<Contact[]>([])
 const loading      = ref(true)

@@ -10,7 +10,7 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
-        <span>Чаты</span>
+        <span>{{ t('nav_chats') }}</span>
       </router-link>
 
       <!-- Контакты -->
@@ -21,7 +21,7 @@
           <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
           <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
         </svg>
-        <span>Контакты</span>
+        <span>{{ t('nav_contacts') }}</span>
       </router-link>
 
       <!-- Уведомления -->
@@ -33,7 +33,7 @@
           </svg>
           <span v-if="notifCount > 0" class="badge">{{ notifCount > 9 ? '9+' : notifCount }}</span>
         </div>
-        <span>Звонки</span>
+        <span>{{ t('nav_calls') }}</span>
       </router-link>
 
       <!-- Профиль -->
@@ -42,7 +42,7 @@
           <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
           <circle cx="12" cy="7" r="4"/>
         </svg>
-        <span>Профиль</span>
+        <span>{{ t('nav_profile') }}</span>
       </router-link>
     </nav>
   </div>
@@ -51,6 +51,9 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import { bffHeaders } from '../stores/auth'
+import { useI18n } from '../composables/useI18n'
+
+const { t } = useI18n()
 
 const API        = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 const notifCount = ref(0)

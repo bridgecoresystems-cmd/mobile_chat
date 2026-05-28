@@ -2,9 +2,9 @@
   <AppLayout>
     <div class="page">
       <header>
-        <h1>Профиль</h1>
+        <h1>{{ t('profile_title') }}</h1>
         <button class="edit-btn" @click="editing = !editing">
-          {{ editing ? 'Отмена' : 'Изменить' }}
+          {{ editing ? t('profile_cancel') : t('profile_edit') }}
         </button>
       </header>
 
@@ -43,42 +43,42 @@
       <!-- Форма редактирования -->
       <form v-if="editing" class="form" @submit.prevent="save">
         <div class="field">
-          <label>Имя</label>
-          <input v-model="form.first_name" placeholder="Имя" />
+          <label>{{ t('profile_fname') }}</label>
+          <input v-model="form.first_name" :placeholder="t('profile_fname')" />
         </div>
         <div class="field">
-          <label>Фамилия</label>
-          <input v-model="form.last_name" placeholder="Фамилия" />
+          <label>{{ t('profile_lname') }}</label>
+          <input v-model="form.last_name" :placeholder="t('profile_lname')" />
         </div>
         <div class="field">
-          <label>Телефон</label>
+          <label>{{ t('profile_phone') }}</label>
           <input v-model="form.phone" placeholder="+993 65 000000" type="tel" />
         </div>
         <p v-if="saveError" class="error">{{ saveError }}</p>
         <button type="submit" class="btn-primary" :disabled="saving">
-          {{ saving ? '...' : 'Сохранить' }}
+          {{ saving ? '...' : t('profile_save') }}
         </button>
       </form>
 
       <!-- Просмотр профиля -->
       <div v-else class="info-list">
         <div class="info-row">
-          <span class="label">Имя</span>
+          <span class="label">{{ t('profile_fname') }}</span>
           <span>{{ profile?.first_name ?? '—' }}</span>
         </div>
         <div class="info-row">
-          <span class="label">Фамилия</span>
+          <span class="label">{{ t('profile_lname') }}</span>
           <span>{{ profile?.last_name ?? '—' }}</span>
         </div>
         <div class="info-row">
-          <span class="label">Телефон</span>
+          <span class="label">{{ t('profile_phone') }}</span>
           <span>{{ profile?.phone ?? '—' }}</span>
         </div>
       </div>
 
       <!-- Настройки -->
       <div class="settings-section">
-        <p class="section-title">Настройки</p>
+        <p class="section-title">{{ t('profile_settings') }}</p>
 
         <!-- Тема -->
         <div class="settings-row" @click="toggleTheme">
@@ -95,8 +95,8 @@
             </svg>
           </div>
           <div class="settings-label">
-            <span class="settings-name">Тема</span>
-            <span class="settings-value">{{ theme === 'dark' ? 'Тёмная' : 'Светлая' }}</span>
+            <span class="settings-name">{{ t('profile_theme') }}</span>
+            <span class="settings-value">{{ theme === 'dark' ? t('profile_dark') : t('profile_light') }}</span>
           </div>
           <svg class="settings-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="9 18 15 12 9 6"/>
@@ -113,7 +113,7 @@
             </svg>
           </div>
           <div class="settings-label">
-            <span class="settings-name">Язык</span>
+            <span class="settings-name">{{ t('profile_lang') }}</span>
             <span class="settings-value">{{ LANGS.find(l => l.code === lang)?.label }}</span>
           </div>
           <div class="lang-pills">
@@ -122,14 +122,14 @@
               :key="l.code"
               class="lang-pill"
               :class="{ active: lang === l.code }"
-              @click.stop="lang = l.code"
+              @click.stop="setLang(l.code)"
             >{{ l.short }}</button>
           </div>
         </div>
       </div>
 
       <div class="footer">
-        <button class="logout-btn" @click="logout">Выйти из аккаунта</button>
+        <button class="logout-btn" @click="logout">{{ t('profile_logout') }}</button>
       </div>
     </div>
   </AppLayout>
@@ -142,6 +142,8 @@ import AppLayout from '../components/AppLayout.vue'
 import { useAuthStore, bffHeaders } from '../stores/auth'
 import { useTheme } from '../composables/useTheme'
 import { useAvatarCache } from '../composables/useAvatarCache'
+import { useI18n } from '../composables/useI18n'
+import type { Lang } from '../composables/useI18n'
 import type { Profile } from '@chat/shared'
 
 const router  = useRouter()
@@ -149,6 +151,7 @@ const auth    = useAuthStore()
 const API     = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 const { theme, toggleTheme } = useTheme()
 const { myAvatarDataUrl, loadLocalAvatar, syncAvatar, saveLocalAvatar } = useAvatarCache()
+const { lang, t, setLang } = useI18n()
 
 const profile        = ref<Profile | null>(null)
 const editing        = ref(false)
@@ -158,13 +161,11 @@ const uploadingAvatar = ref(false)
 const avatarError    = ref('')
 const form           = ref({ first_name: '', last_name: '', phone: '' })
 
-const LANGS = [
+const LANGS: { code: Lang; label: string; short: string }[] = [
   { code: 'ru', label: 'Русский', short: 'RU' },
   { code: 'en', label: 'English', short: 'EN' },
   { code: 'tk', label: 'Türkmen', short: 'TK' },
 ]
-const lang = ref(localStorage.getItem('lang') ?? 'ru')
-watch(lang, l => localStorage.setItem('lang', l))
 
 const displayName = computed(() => {
   if (profile.value?.first_name) return `${profile.value.first_name} ${profile.value.last_name}`
@@ -196,7 +197,7 @@ async function onAvatarChange(e: Event) {
       headers: bffHeaders({ skipContentType: true }),
       body:    form,
     })
-    if (!uploadRes.ok) throw new Error('Ошибка загрузки фото')
+    if (!uploadRes.ok) throw new Error(t('profile_photo_err'))
     const { file_url } = await uploadRes.json()
 
     // 2. Сохраняем avatar_url в БД
@@ -205,7 +206,7 @@ async function onAvatarChange(e: Event) {
       headers: bffHeaders(),
       body:    JSON.stringify({ avatar_url: file_url }),
     })
-    if (!patchRes.ok) throw new Error('Не удалось сохранить аватар')
+    if (!patchRes.ok) throw new Error(t('profile_avatar_err'))
 
     // 3. Кэшируем фото на устройство
     await saveLocalAvatar(file_url)
