@@ -97,30 +97,50 @@ onUnmounted(() => { if (interval) clearInterval(interval) })
   display: flex;
   align-items: center;
   justify-content: space-around;
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-top: 1px solid var(--border);
-  padding: 8px 0;
-  padding-bottom: calc(8px + env(safe-area-inset-bottom));
+  padding: 10px 0;
+  padding-bottom: calc(10px + env(safe-area-inset-bottom));
   flex-shrink: 0;
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03);
+  z-index: 10;
 }
 
 .nav-item {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   flex: 1;
   padding: 4px 0;
   color: var(--muted);
   text-decoration: none;
-  transition: color .15s;
-  font-size: 10px;
-  font-weight: 500;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  font-size: 11px;
+  font-weight: 600;
   background: none;
   border: none;
+  position: relative;
 }
 
-.nav-item.active { color: var(--accent); }
+.nav-item svg {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.nav-item:active svg {
+  transform: scale(0.85);
+}
+
+.nav-item.active { 
+  color: var(--accent);
+}
+
+.nav-item.active svg {
+  transform: translateY(-2px);
+  filter: drop-shadow(0 2px 8px rgba(var(--accent-rgb), 0.3));
+}
 
 .icon-wrap {
   position: relative;
@@ -131,16 +151,33 @@ onUnmounted(() => { if (interval) clearInterval(interval) })
 
 .badge {
   position: absolute;
-  top: -6px; right: -8px;
+  top: -5px; 
+  right: -8px;
   background: #ef4444;
   color: #fff;
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   min-width: 16px;
   height: 16px;
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
+  border-radius: 99px;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
   padding: 0 4px;
   line-height: 1;
+  box-shadow: 0 0 0 2px var(--surface);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
 }
 </style>

@@ -363,95 +363,165 @@ onMounted(async () => {
 </script>
 
 <style scoped>
-.page { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+.page { 
+  display: flex; 
+  flex-direction: column; 
+  height: 100dvh; 
+  overflow: hidden; 
+  background: var(--bg);
+  animation: fadeIn 0.25s ease;
+}
 
 /* ── Шапка ─────────────────────────────────────────────────────────────────── */
 header {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 14px;
+  padding: 12px 20px;
   padding-top: calc(12px + env(safe-area-inset-top));
-  background: var(--surface);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-bottom: 1px solid var(--border);
-  box-shadow: 0 1px 8px rgba(0,0,0,.08);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.02);
   flex-shrink: 0;
-  z-index: 1;
+  z-index: 10;
 }
 
 .back {
   color: var(--accent);
-  display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 32px; flex-shrink: 0;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  width: 36px; 
+  height: 36px; 
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.peer-info { display: flex; align-items: center; gap: 10px; }
+.back:active {
+  background: var(--surface);
+  transform: scale(0.9);
+}
+
+.peer-info { 
+  display: flex; 
+  align-items: center; 
+  gap: 12px; 
+}
 
 .peer-avatar {
-  width: 38px; height: 38px;
+  width: 40px; 
+  height: 40px;
   border-radius: 50%;
-  background: var(--accent);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 14px; font-weight: 700;
+  background: var(--accent-gradient);
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  font-size: 14px; 
+  font-weight: 800;
+  color: #fff;
   flex-shrink: 0;
+  box-shadow: 0 4px 10px rgba(var(--accent-rgb), 0.2);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.peer-name { font-size: 15px; font-weight: 700; }
+.peer-name { 
+  font-size: 15px; 
+  font-weight: 700; 
+  color: var(--text);
+}
 
 .status {
-  display: flex; align-items: center; gap: 4px;
-  font-size: 11px; color: var(--muted); font-weight: 500;
+  display: flex; 
+  align-items: center; 
+  gap: 5px;
+  font-size: 11px; 
+  color: var(--muted); 
+  font-weight: 600;
 }
 
-.status.online { color: #22c55e; }
-.dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.status.online { 
+  color: #10b981; 
+}
+
+.dot { 
+  width: 6px; 
+  height: 6px; 
+  border-radius: 50%; 
+  background: currentColor; 
+}
 
 /* ── Тело чата ─────────────────────────────────────────────────────────────── */
 .body {
-  flex: 1; overflow-y: auto;
-  padding: 12px 16px 16px;
-  display: flex; flex-direction: column;
+  flex: 1; 
+  overflow-y: auto;
+  padding: 16px 20px 24px;
+  display: flex; 
+  flex-direction: column;
   background: var(--bg);
 }
 
 .empty {
-  flex: 1; display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  gap: 8px; color: var(--muted); padding: 40px 0;
+  flex: 1; 
+  display: flex; 
+  flex-direction: column;
+  align-items: center; 
+  justify-content: center;
+  gap: 10px; 
+  color: var(--muted); 
+  padding: 40px 0;
 }
 
-.empty-icon { font-size: 40px; }
-.empty p    { font-size: 15px; font-weight: 600; color: var(--text); }
-.empty span { font-size: 13px; }
+.empty-icon { 
+  font-size: 48px; 
+  animation: pulse 2s infinite;
+}
+
+.empty p { 
+  font-size: 15px; 
+  font-weight: 700; 
+  color: var(--text); 
+}
+
+.empty span { 
+  font-size: 13px; 
+  opacity: 0.8;
+}
 
 /* ── Разделитель дат ───────────────────────────────────────────────────────── */
 .date-sep {
-  display: flex; align-items: center; justify-content: center;
-  margin: 10px 0 6px;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  margin: 16px 0 12px;
 }
 
 .date-sep span {
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--muted);
-  font-size: 11px; font-weight: 600;
-  padding: 3px 10px;
-  border-radius: 20px;
+  font-size: 11px; 
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 99px;
   letter-spacing: .2px;
+  box-shadow: var(--shadow-sm);
 }
 
 /* ── Строки сообщений ──────────────────────────────────────────────────────── */
 .msg-row {
   display: flex;
   align-items: flex-end;
-  gap: 7px;
-  max-width: 82%;
-  margin-top: 2px;
-  animation: msgIn .16s ease both;
+  gap: 8px;
+  max-width: 85%;
+  margin-top: 3px;
+  animation: msgIn .22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.msg-row.grp-start { margin-top: 10px; }
-.date-sep + .msg-row { margin-top: 4px; }
+.msg-row.grp-start { margin-top: 14px; }
+.date-sep + .msg-row { margin-top: 6px; }
 
 .msg-row.own {
   align-self: flex-end;
@@ -459,121 +529,194 @@ header {
 }
 
 @keyframes msgIn {
-  from { opacity: 0; transform: translateY(5px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
 /* ── Аватар ────────────────────────────────────────────────────────────────── */
 .avatar-slot {
-  width: 30px; height: 30px;
+  width: 32px; 
+  height: 32px;
   flex-shrink: 0;
-  display: flex; align-items: flex-end;
+  display: flex; 
+  align-items: flex-end;
 }
 
 .msg-avatar {
-  width: 30px; height: 30px;
+  width: 32px; 
+  height: 32px;
   border-radius: 50%;
   background: var(--surface);
   border: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: var(--accent);
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  font-size: 11px; 
+  font-weight: 800; 
+  color: var(--accent);
+  box-shadow: var(--shadow-sm);
 }
 
 /* ── Пузырь ────────────────────────────────────────────────────────────────── */
-.bubble-wrap { display: flex; flex-direction: column; gap: 2px; }
+.bubble-wrap { 
+  display: flex; 
+  flex-direction: column; 
+  gap: 3px; 
+  position: relative;
+}
 
-.sender-name { font-size: 11px; font-weight: 700; color: var(--accent); margin-left: 4px; }
+.sender-name { 
+  font-size: 11px; 
+  font-weight: 700; 
+  color: var(--accent); 
+  margin-left: 6px; 
+  margin-bottom: 2px;
+}
 
 .bubble {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 4px 16px 16px 16px; /* хвостик слева-снизу для последнего */
-  padding: 8px 11px;
-  box-shadow: var(--shadow);
+  border: 1.5px solid var(--border);
+  border-radius: 6px 18px 18px 18px;
+  padding: 10px 14px;
+  box-shadow: var(--shadow-sm);
+  color: var(--text);
+  position: relative;
+  transition: background-color 0.2s;
 }
 
-/* Не последнее в группе — убираем хвостик */
-.bubble.grp-notlast {
-  border-radius: 4px 16px 16px 16px;
-}
-/* Последнее (или одиночное) для чужих — хвостик слева-снизу */
-.bubble:not(.grp-notlast) {
-  border-radius: 4px 16px 16px 16px;
-}
-
-/* Свои сообщения */
 .own .bubble {
-  background: linear-gradient(135deg, var(--accent), #4f46e5);
+  background: var(--accent-gradient);
   border: none;
-  border-radius: 16px 4px 4px 16px; /* хвостик справа-снизу */
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(99,102,241,.35);
+  border-radius: 18px 6px 18px 18px;
+  color: var(--text-inverse);
+  box-shadow: 0 6px 18px rgba(var(--accent-rgb), 0.2);
 }
 
-.own .bubble.grp-notlast {
-  border-radius: 16px 4px 4px 16px;
+.bubble.deleted { 
+  opacity: 0.55; 
+  font-style: italic; 
 }
-
-.bubble.deleted { opacity: .5; font-style: italic; }
 
 .photo {
-  max-width: 220px; max-height: 220px;
-  min-height: 80px;
-  border-radius: 10px; display: block;
-  cursor: pointer; object-fit: cover;
+  max-width: 240px; 
+  max-height: 240px;
+  min-height: 100px;
+  border-radius: 12px; 
+  display: block;
+  cursor: pointer; 
+  object-fit: cover;
   background: var(--border);
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.2s ease;
 }
 
-.text { font-size: 14px; line-height: 1.45; word-break: break-word; }
+.photo:hover {
+  transform: scale(1.02);
+}
+
+.text { 
+  font-size: 14.5px; 
+  line-height: 1.5; 
+  word-break: break-word; 
+  font-weight: 500;
+}
 
 .time {
-  display: flex; align-items: center; gap: 3px;
-  font-size: 10px; color: var(--muted);
-  justify-content: flex-end; margin-top: 4px;
+  display: flex; 
+  align-items: center; 
+  gap: 4px;
+  font-size: 10px; 
+  color: var(--muted);
+  justify-content: flex-end; 
+  margin-top: 6px;
+  font-weight: 600;
 }
 
-.own .time { color: rgba(255,255,255,.6); }
+.own .time { 
+  color: rgba(255, 255, 255, 0.7); 
+}
 
-.read-status { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.5); margin-left: 2px; }
-.read-status.read { color: #86efac; }
+.read-status { 
+  font-size: 10px; 
+  font-weight: 800; 
+  color: rgba(255, 255, 255, 0.6); 
+  margin-left: 2px; 
+}
+
+.read-status.read { 
+  color: #86efac; 
+}
 
 /* ── Кнопки редактирования ────────────────────────────────────────────────── */
-.msg-actions { display: flex; gap: 4px; margin-top: 2px; justify-content: flex-end; }
-
-.act-btn {
-  font-size: 12px; padding: 2px 5px;
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 6px; cursor: pointer;
-  opacity: .6; transition: opacity .15s;
+.msg-actions { 
+  display: flex; 
+  gap: 6px; 
+  margin-top: 4px; 
+  justify-content: flex-end; 
 }
 
-.act-btn:hover { opacity: 1; }
+.act-btn {
+  font-size: 11px; 
+  padding: 4px 8px;
+  background: var(--surface); 
+  border: 1px solid var(--border);
+  border-radius: 8px; 
+  cursor: pointer;
+  opacity: 0; 
+  transition: all 0.2s ease;
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.msg-row:hover .act-btn {
+  opacity: 0.75;
+}
+
+.act-btn:hover { 
+  opacity: 1 !important; 
+  transform: translateY(-1px);
+}
 
 /* ── Индикатор печатания ─────────────────────────────────────────────────────*/
 .typing {
-  display: flex; align-items: flex-end; gap: 7px;
-  margin-top: 8px;
+  display: flex; 
+  align-items: flex-end; 
+  gap: 8px;
+  margin-top: 10px;
+  animation: fadeIn 0.2s ease;
 }
 
 .typing-avatar {
-  width: 30px; height: 30px;
+  width: 32px; 
+  height: 32px;
   border-radius: 50%;
-  background: var(--surface); border: 1px solid var(--border);
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: var(--accent);
+  background: var(--surface); 
+  border: 1px solid var(--border);
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  font-size: 11px; 
+  font-weight: 800; 
+  color: var(--accent);
   flex-shrink: 0;
 }
 
 .typing-bubble {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: 4px 16px 16px 16px;
-  padding: 10px 14px;
-  display: flex; align-items: center; gap: 4px;
+  background: var(--surface); 
+  border: 1.5px solid var(--border);
+  border-radius: 6px 18px 18px 18px;
+  padding: 12px 16px;
+  display: flex; 
+  align-items: center; 
+  gap: 4px;
+  box-shadow: var(--shadow-sm);
 }
 
 .dots { display: flex; gap: 4px; }
 .dots span {
-  width: 6px; height: 6px; border-radius: 50%;
+  width: 6px; 
+  height: 6px; 
+  border-radius: 50%;
   background: var(--muted);
   animation: blink 1.4s infinite both;
 }
@@ -584,75 +727,144 @@ header {
 
 /* ── Баннер редактирования ───────────────────────────────────────────────────*/
 .edit-banner {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 7px 16px;
-  background: var(--accent); color: #fff; font-size: 12px;
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between;
+  padding: 10px 20px;
+  background: var(--accent); 
+  color: var(--text-inverse); 
+  font-size: 13px;
+  font-weight: 600;
   gap: 8px;
+  border-top: 1px solid var(--border);
+  animation: fadeIn 0.2s ease;
 }
 
-.edit-banner-left { display: flex; align-items: center; gap: 7px; opacity: .9; }
-.edit-banner button { background: none; color: #fff; font-size: 16px; opacity: .8; }
+.edit-banner-left { 
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
+  opacity: .95; 
+}
+
+.edit-banner button { 
+  background: none; 
+  color: currentColor; 
+  font-size: 16px; 
+  cursor: pointer;
+}
 
 /* ── Подвал ────────────────────────────────────────────────────────────────── */
 footer {
   border-top: 1px solid var(--border);
-  background: var(--surface);
-  padding: 10px 16px;
-  padding-bottom: calc(10px + env(safe-area-inset-bottom));
-  box-shadow: 0 -1px 8px rgba(0,0,0,.06);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 12px 20px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.03);
 }
 
-.input-row { display: flex; align-items: center; gap: 8px; }
+.input-row { 
+  display: flex; 
+  align-items: center; 
+  gap: 10px; 
+}
 
 .photo-btn {
-  display: flex; align-items: center; justify-content: center;
-  width: 36px; height: 36px; flex-shrink: 0;
-  color: var(--muted); cursor: pointer; transition: color .15s;
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  width: 40px; 
+  height: 40px; 
+  border-radius: 50%;
+  flex-shrink: 0;
+  color: var(--muted); 
+  cursor: pointer; 
+  transition: all 0.2s ease;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
 }
 
-.photo-btn:hover { color: var(--accent); }
+.photo-btn:hover { 
+  color: var(--accent); 
+  border-color: var(--accent);
+}
+
 .hidden-input { display: none; }
 
 .textarea {
-  flex: 1; background: var(--bg); border: 1.5px solid var(--border);
-  border-radius: 20px; padding: 9px 14px; color: var(--text);
-  font-size: 14px; resize: none; max-height: 100px; line-height: 1.4;
-  transition: border-color .15s;
+  flex: 1; 
+  background: var(--surface); 
+  border: 1.5px solid var(--border);
+  border-radius: 20px; 
+  padding: 10px 16px; 
+  color: var(--text);
+  font-size: 14.5px; 
+  resize: none; 
+  max-height: 120px; 
+  line-height: 1.4;
+  transition: all 0.2s ease;
+  font-weight: 500;
 }
 
-.textarea:focus { border-color: var(--accent); }
+.textarea:focus { 
+  border-color: var(--accent); 
+  background: var(--surface);
+}
 
 .send-btn {
-  width: 40px; height: 40px; border-radius: 50%;
-  background: var(--accent); color: #fff;
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; transition: opacity .15s, transform .1s;
+  width: 40px; 
+  height: 40px; 
+  border-radius: 50%;
+  background: var(--accent-gradient); 
+  color: var(--text-inverse);
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
+  flex-shrink: 0; 
+  box-shadow: 0 4px 10px rgba(var(--accent-rgb), 0.2);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.send-btn:not(:disabled):active { transform: scale(.92); }
-.send-btn:disabled { opacity: .4; }
+.send-btn:not(:disabled):active { 
+  transform: scale(.9); 
+}
+
+.send-btn:disabled { 
+  opacity: 0.5; 
+  box-shadow: none;
+}
 
 .spinner {
-  width: 16px; height: 16px;
-  border: 2px solid rgba(255,255,255,.3);
+  width: 18px; 
+  height: 18px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin .6s linear infinite;
   display: inline-block;
 }
 
-@keyframes spin { to { transform: rotate(360deg); } }
-
 /* ── Лайтбокс ────────────────────────────────────────────────────────────────*/
 .lightbox {
-  position: fixed; inset: 0; z-index: 999;
-  background: rgba(0,0,0,.92);
-  display: flex; align-items: center; justify-content: center;
+  position: fixed; 
+  inset: 0; 
+  z-index: 999;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex; 
+  align-items: center; 
+  justify-content: center;
   cursor: zoom-out;
+  animation: fadeIn 0.2s ease;
 }
 
 .lightbox-img {
-  max-width: 95vw; max-height: 90vh;
-  border-radius: 12px; object-fit: contain;
+  max-width: 95vw; 
+  max-height: 92vh;
+  border-radius: 16px; 
+  object-fit: contain;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+  animation: scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 </style>
