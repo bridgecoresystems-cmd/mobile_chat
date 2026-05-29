@@ -4,8 +4,23 @@ import { Capacitor } from "@capacitor/core"
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001"
 
 export async function registerPushNotifications(chatToken: string) {
-  // Only works on native (Android/iOS), skip in browser
   if (!Capacitor.isNativePlatform()) return
+
+  // Android 8+: create a high-priority channel so notifications play sound
+  // and appear as heads-up banners (must be created before register())
+  if (Capacitor.getPlatform() === "android") {
+    await PushNotifications.createChannel({
+      id:          "messages",
+      name:        "Messages",
+      description: "New message and contact request notifications",
+      importance:  5,      // IMPORTANCE_HIGH — sound + heads-up banner
+      sound:       "default",
+      vibration:   true,
+      visibility:  1,      // VISIBILITY_PUBLIC
+      lights:      true,
+      lightColor:  "#6366F1",
+    })
+  }
 
   const permission = await PushNotifications.requestPermissions()
   if (permission.receive !== "granted") return
@@ -25,12 +40,10 @@ export async function registerPushNotifications(chatToken: string) {
     } catch {}
   })
 
-  // Foreground notification — show as alert (simple approach)
   PushNotifications.addListener("pushNotificationReceived", (notification) => {
     console.log("Push received:", notification.title)
   })
 
-  // User tapped notification
   PushNotifications.addListener("pushNotificationActionPerformed", (action) => {
     const roomId = action.notification.data?.room_id
     if (roomId) {

@@ -4,6 +4,7 @@ import { swagger }      from "@elysiajs/swagger"
 import { authRoutes }   from "./routes/auth"
 import { authGuard }    from "./middleware/auth"
 import { profileRoutes, searchRoutes, contactRoutes, notificationRoutes } from "./routes/profile"
+import { adminRoutes }  from "./routes/admin"
 
 const CHAT_ENGINE = process.env.CHAT_SERVER_URL ?? "http://chat-engine:8080"
 const CHAT_WS     = CHAT_ENGINE.replace(/^http/, "ws")
@@ -23,6 +24,7 @@ const app = new Elysia()
   .use(searchRoutes)
   .use(contactRoutes)
   .use(notificationRoutes)
+  .use(adminRoutes)
 
   // ── Public: history (no auth needed, Rust engine is source of truth) ──────
   .get(

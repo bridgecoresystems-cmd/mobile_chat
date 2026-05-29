@@ -108,19 +108,24 @@
 
     <footer>
       <div class="input-row">
-        <label class="photo-btn" title="Прикрепить фото">
+        <button
+          class="photo-btn"
+          :disabled="!isConnected || uploading"
+          @click="onPhotoBtn"
+        >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/>
             <polyline points="21 15 16 10 5 21"/>
           </svg>
-          <input
-            type="file"
-            accept="image/*"
-            class="hidden-input"
-            :disabled="!isConnected || uploading"
-            @change="onFileChange"
-          />
-        </label>
+        </button>
+        <!-- browser fallback: hidden file input -->
+        <input
+          ref="fileInputRef"
+          type="file"
+          accept="image/*"
+          class="hidden-input"
+          @change="onFileChange"
+        />
 
         <textarea
           v-model="draft"
@@ -157,6 +162,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, bffHeaders } from '../stores/auth'
 import { useChat } from '../composables/useChat'
 import { useI18n } from '../composables/useI18n'
+import { Capacitor } from '@capacitor/core'
+import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import type { Contact } from '@chat/shared'
 import type { Message } from '../composables/useChat'
 
@@ -171,12 +178,13 @@ const roomId = route.params.roomId as string
 const chat   = useChat(roomId)
 const { messages, onlineUsers, typingUsers, isConnected } = chat
 
-const draft       = ref('')
-const bodyEl      = ref<HTMLElement | null>(null)
-const contact     = ref<Contact | null>(null)
-const uploading   = ref(false)
-const lightboxUrl = ref<string | null>(null)
-const editingMsg  = ref<Message | null>(null)
+const draft        = ref('')
+const bodyEl       = ref<HTMLElement | null>(null)
+const contact      = ref<Contact | null>(null)
+const uploading    = ref(false)
+const lightboxUrl  = ref<string | null>(null)
+const editingMsg   = ref<Message | null>(null)
+const fileInputRef = ref<HTMLInputElement | null>(null)
 
 const peerId = computed(() => {
   const parts = roomId.split('__')
@@ -290,15 +298,9 @@ function confirmDelete(msgId: string) {
 
 function openPhoto(url: string) { lightboxUrl.value = url }
 
-async function onFileChange(e: Event) {
-  const input = e.target as HTMLInputElement
-  const file  = input.files?.[0]
-  if (!file) return
-  input.value = ''
-
+async function uploadFile(file: File) {
   uploading.value = true
   try {
-    // Загружаем через BFF-прокси — сервер сам пишет в R2, без CORS на клиенте
     const form = new FormData()
     form.append('file', file)
     const res = await fetch(`${API}/upload`, {
@@ -308,7 +310,6 @@ async function onFileChange(e: Event) {
     })
     if (!res.ok) throw new Error('upload failed')
     const { file_url } = await res.json()
-
     chat.sendPhoto(file_url)
   } catch (err) {
     console.error('Photo upload failed:', err)
@@ -316,6 +317,36 @@ async function onFileChange(e: Event) {
   } finally {
     uploading.value = false
   }
+}
+
+async function onPhotoBtn() {
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const photo = await Camera.getPhoto({
+        resultType: CameraResultType.DataUrl,
+        source:     CameraSource.Prompt,  // показывает выбор: камера или галерея
+        quality:    85,
+      })
+      if (!photo.dataUrl) return
+      const res  = await fetch(photo.dataUrl)
+      const blob = await res.blob()
+      await uploadFile(new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' }))
+    } catch (err: any) {
+      if (err?.message !== 'User cancelled photos app') {
+        alert(t('chat_photo_err'))
+      }
+    }
+  } else {
+    fileInputRef.value?.click()
+  }
+}
+
+async function onFileChange(e: Event) {
+  const input = e.target as HTMLInputElement
+  const file  = input.files?.[0]
+  if (!file) return
+  input.value = ''
+  await uploadFile(file)
 }
 
 function onKey(e: KeyboardEvent) {

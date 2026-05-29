@@ -22,7 +22,7 @@ export const authGuard = new Elysia({ name: "auth-guard" })
 
     const user = await db.query.users.findFirst({
       where: eq(users.id, payload.sub as string),
-      columns: { id: true, username: true, created_at: true },
+      columns: { id: true, username: true, is_admin: true, created_at: true },
     })
 
     return { currentUser: user ?? null }
