@@ -5,6 +5,7 @@ export default defineNuxtConfig({
     public: { apiUrl: 'http://localhost:3001' },
   },
   app: {
+    pageTransition: { name: 'page', mode: 'out-in' },
     head: {
       title: 'konekt admin',
       meta: [

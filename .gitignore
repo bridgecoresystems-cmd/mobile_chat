@@ -6,3 +6,6 @@ packages/mobile/android/
 packages/mobile/ios/
 start.md
 screens/
+*.tsbuildinfo
+.nuxt/
+.output/
