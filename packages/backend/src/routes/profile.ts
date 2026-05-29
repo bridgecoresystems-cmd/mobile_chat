@@ -24,8 +24,33 @@ export const profileRoutes = new Elysia({ prefix: "/profile" })
 
   .post(
     "/",
-    async ({ currentUser, body }) => {
+    async ({ currentUser, body, set }) => {
       const now = Date.now()
+
+      // 1. Check if email is already taken by another user
+      if (body.email) {
+        const existingEmail = await db.query.users.findFirst({
+          where: sql`${users.email} = ${body.email} AND ${users.id} != ${currentUser.id}`,
+          columns: { id: true },
+        })
+        if (existingEmail) {
+          set.status = 409
+          return { error: "email already taken" }
+        }
+      }
+
+      // 2. Update users table (email and optionally password)
+      const userUpdates: any = { email: body.email || null }
+      if (body.password) {
+        if (body.password.length < 4) {
+          set.status = 400
+          return { error: "Password must be at least 4 characters long" }
+        }
+        userUpdates.password_hash = await Bun.password.hash(body.password)
+      }
+      await db.update(users).set(userUpdates).where(eq(users.id, currentUser.id))
+
+      // 3. Update or insert profiles table
       const exists = await db.query.profiles.findFirst({
         where: eq(profiles.user_id, currentUser.id),
         columns: { user_id: true },
@@ -48,6 +73,8 @@ export const profileRoutes = new Elysia({ prefix: "/profile" })
         first_name: t.String({ minLength: 1 }),
         last_name:  t.String({ minLength: 1 }),
         phone:      t.String({ minLength: 5 }),
+        email:      t.Optional(t.String()),
+        password:   t.Optional(t.String()),
       }),
     }
   )

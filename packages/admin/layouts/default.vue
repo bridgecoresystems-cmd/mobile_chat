@@ -33,13 +33,13 @@
       </nav>
 
       <div class="sidebar-footer">
-        <div class="admin-card" v-if="adminProfile">
+        <NuxtLink to="/profile" class="admin-card" v-if="adminProfile">
           <div class="admin-avatar">{{ initials }}</div>
           <div class="admin-info">
             <span class="admin-name">{{ adminName }}</span>
             <span class="admin-role">Администратор</span>
           </div>
-        </div>
+        </NuxtLink>
 
         <button class="logout-btn" @click="logout">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -216,6 +216,15 @@ onMounted(async () => {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.03);
+  text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.admin-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(99, 102, 241, 0.2);
+  transform: translateY(-1px);
 }
 
 .admin-avatar {
