@@ -7,12 +7,12 @@ const root = protobuf.Root.fromJSON({
       nested: {
         Envelope: {
           fields: {
-            message:  { id: 1, type: "ChatMessage",   oneOf: "kind" },
-            ack:      { id: 2, type: "Ack",            oneOf: "kind" },
-            typing:   { id: 3, type: "Typing",         oneOf: "kind" },
-            presence: { id: 4, type: "Presence",       oneOf: "kind" },
-            edit:     { id: 5, type: "EditMessage",    oneOf: "kind" },
-            delete:   { id: 6, type: "DeleteMessage",  oneOf: "kind" },
+            message:  { id: 1, type: "ChatMessage",   oneof: "kind" } as any,
+            ack:      { id: 2, type: "Ack",            oneof: "kind" } as any,
+            typing:   { id: 3, type: "Typing",         oneof: "kind" } as any,
+            presence: { id: 4, type: "Presence",       oneof: "kind" } as any,
+            edit:     { id: 5, type: "EditMessage",    oneof: "kind" } as any,
+            delete:   { id: 6, type: "DeleteMessage",  oneof: "kind" } as any,
           },
           oneofs: { kind: { oneof: ["message", "ack", "typing", "presence", "edit", "delete"] } },
         },
@@ -327,7 +327,7 @@ export function useChat(roomId: string) {
   }
 
   function sendEnvelope(kind: object) {
-    ws!.send(Envelope.encode(Envelope.create(kind)).finish())
+    ws!.send(Envelope.encode(Envelope.create(kind)).finish() as unknown as Uint8Array<ArrayBuffer>)
   }
 
   function disconnect() {
