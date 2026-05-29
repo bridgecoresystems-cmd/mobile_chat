@@ -11,6 +11,7 @@
     "build":        "bun run build:mobile",
     "build:mobile": "bun run --cwd packages/mobile build",
     "build:admin":  "bun run --cwd packages/admin build",
+    "seed":         "bun run --cwd packages/backend seed",
     "db:generate":  "bun run --cwd packages/backend db:generate",
     "db:migrate":   "bun run --cwd packages/backend db:migrate",
     "db:push":      "bun run --cwd packages/backend db:push",
