@@ -57,7 +57,7 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="u in filtered" :key="u.id" class="user-row" @click="selectUser(u)">
+          <tr v-for="u in paginated" :key="u.id" class="user-row" @click="selectUser(u)">
             <td>
               <div class="user-cell">
                 <div class="avatar" :style="{ background: avatarColor(u.id) }">{{ initials(u) }}</div>
@@ -105,6 +105,57 @@
           </tr>
         </tbody>
       </table>
+    </div>
+
+    <!-- Pagination Controls -->
+    <div class="pagination-container" v-if="filtered.length > 0">
+      <div class="pagination-info">
+        Показано с <strong>{{ (currentPage - 1) * itemsPerPage + 1 }}</strong> по <strong>{{ Math.min(currentPage * itemsPerPage, filtered.length) }}</strong> из <strong>{{ filtered.length }}</strong> пользователей
+      </div>
+      
+      <div class="pagination-controls">
+        <!-- Per Page Dropdown -->
+        <div class="per-page-select">
+          <span>Показывать по:</span>
+          <select v-model="itemsPerPage" class="pagination-select">
+            <option :value="5">5</option>
+            <option :value="10">10</option>
+            <option :value="25">25</option>
+            <option :value="50">50</option>
+            <option :value="100">100</option>
+          </select>
+        </div>
+
+        <!-- Page Buttons -->
+        <div class="pagination-buttons">
+          <button 
+            class="page-btn nav-btn" 
+            :disabled="currentPage === 1" 
+            @click="currentPage--"
+          >
+            ‹
+          </button>
+          
+          <button 
+            v-for="p in pagesToShow" 
+            :key="p"
+            class="page-btn"
+            :class="{ active: currentPage === p, ellipsis: p === '...' }"
+            :disabled="p === '...'"
+            @click="typeof p === 'number' ? currentPage = p : null"
+          >
+            {{ p }}
+          </button>
+
+          <button 
+            class="page-btn nav-btn" 
+            :disabled="currentPage === totalPages" 
+            @click="currentPage++"
+          >
+            ›
+          </button>
+        </div>
+      </div>
     </div>
 
     <!-- Slide-out Drawer for User Details -->
@@ -212,6 +263,10 @@ const loading      = ref(true)
 const search       = ref('')
 const activeFilter = ref<'all' | 'admins' | 'users'>('all')
 
+// Pagination state
+const currentPage  = ref(1)
+const itemsPerPage = ref(10)
+
 // Details drawer state
 const selectedUser = ref<any | null>(null)
 
@@ -267,10 +322,61 @@ const filtered = computed(() => {
   )
 })
 
+// Paginated subset of users
+const paginated = computed(() => {
+  const start = (currentPage.value - 1) * itemsPerPage.value
+  const end = start + itemsPerPage.value
+  return filtered.value.slice(start, end)
+})
+
+// Total pagination pages
+const totalPages = computed(() => {
+  return Math.ceil(filtered.value.length / itemsPerPage.value) || 1
+})
+
+// Generate page numbers with ellipses
+const pagesToShow = computed(() => {
+  const total = totalPages.value
+  const current = currentPage.value
+  if (total <= 7) {
+    return Array.from({ length: total }, (_, i) => i + 1)
+  }
+  
+  const pages: (number | string)[] = []
+  pages.push(1)
+  
+  if (current > 3) {
+    pages.push('...')
+  }
+  
+  const start = Math.max(2, current - 1)
+  const end = Math.min(total - 1, current + 1)
+  for (let i = start; i <= end; i++) {
+    pages.push(i)
+  }
+  
+  if (current < total - 2) {
+    pages.push('...')
+  }
+  
+  pages.push(total)
+  return pages
+})
+
+// Watchers to reset page on filters/search changes and persist choice
+watch(itemsPerPage, (newVal) => {
+  localStorage.setItem('users_items_per_page', newVal.toString())
+  currentPage.value = 1
+})
+
+watch([search, activeFilter], () => {
+  currentPage.value = 1
+})
+
 async function load() {
   loading.value = true
   try {
-    const data  = await get<any>('/admin/users?limit=200')
+    const data  = await get<any>('/admin/users?limit=1000')
     users.value = data.users
     total.value = data.total
   } finally {
@@ -328,7 +434,16 @@ async function createUser() {
   }
 }
 
-onMounted(load)
+onMounted(() => {
+  const saved = localStorage.getItem('users_items_per_page')
+  if (saved) {
+    const parsed = parseInt(saved, 10)
+    if (!isNaN(parsed) && [5, 10, 25, 50, 100].includes(parsed)) {
+      itemsPerPage.value = parsed
+    }
+  }
+  load()
+})
 </script>
 
 <style scoped>
@@ -797,5 +912,127 @@ onMounted(load)
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+
+/* Pagination Styling */
+.pagination-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 24px;
+  padding: 16px 20px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+@media (max-width: 768px) {
+  .pagination-container {
+    flex-direction: column;
+    align-items: stretch;
+    text-align: center;
+  }
+}
+
+.pagination-info {
+  font-size: 13px;
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.pagination-info strong {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+@media (max-width: 768px) {
+  .pagination-controls {
+    flex-direction: column;
+    align-items: center;
+  }
+}
+
+.per-page-select {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.pagination-select {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  color: var(--text);
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.pagination-select:focus {
+  border-color: var(--accent);
+}
+
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.page-btn {
+  min-width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.page-btn:hover:not(:disabled):not(.ellipsis) {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.page-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+.page-btn:disabled:not(.ellipsis) {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.page-btn.ellipsis {
+  background: none;
+  border: none;
+  cursor: default;
+}
+
+.nav-btn {
+  font-size: 16px;
 }
 </style>
