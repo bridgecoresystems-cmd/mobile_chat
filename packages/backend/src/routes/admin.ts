@@ -10,7 +10,7 @@ export const adminRoutes = new Elysia({ prefix: "/admin" })
   .use(authGuard)
 
   // Admin guard: reject non-admins (is_admin comes from authGuard's user query)
-  .onBeforeHandle({ as: "scoped" }, ({ currentUser, set }) => {
+  .onBeforeHandle({ as: "local" }, ({ currentUser, set }) => {
     if (!(currentUser as any)?.is_admin) { set.status = 403; return { error: "forbidden" } }
   })
 
