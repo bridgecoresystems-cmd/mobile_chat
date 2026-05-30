@@ -105,9 +105,10 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       }
 
       return {
-        user:        { id: user.id, username: user.username, created_at: user.created_at },
-        token:       await bffJwt.sign({ sub: user.id, username: user.username }),
-        chat_token:  await signChatJwt(user.id),
+        user:           { id: user.id, username: user.username, created_at: user.created_at },
+        email_verified: user.email_verified ?? false,
+        token:          await bffJwt.sign({ sub: user.id, username: user.username }),
+        chat_token:     await signChatJwt(user.id),
       }
     },
     {
@@ -167,7 +168,7 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
         set.status = 401; return { error: "invalid code" }
       }
 
-      // Код верный — удаляем и выдаём токены
+      // Код верный — удаляем, ставим email_verified = true, выдаём токены
       await db.delete(otpCodes).where(eq(otpCodes.email, body.email))
 
       const user = await db.query.users.findFirst({
@@ -175,10 +176,15 @@ export const authRoutes = new Elysia({ prefix: "/auth" })
       })
       if (!user) { set.status = 404; return { error: "user not found" } }
 
+      await db.update(users)
+        .set({ email_verified: true })
+        .where(eq(users.id, user.id))
+
       return {
-        user:       { id: user.id, username: user.username, email: user.email, created_at: user.created_at },
-        token:      await bffJwt.sign({ sub: user.id, username: user.username }),
-        chat_token: await signChatJwt(user.id),
+        user:           { id: user.id, username: user.username, email: user.email, created_at: user.created_at },
+        email_verified: true,
+        token:          await bffJwt.sign({ sub: user.id, username: user.username }),
+        chat_token:     await signChatJwt(user.id),
       }
     },
     {

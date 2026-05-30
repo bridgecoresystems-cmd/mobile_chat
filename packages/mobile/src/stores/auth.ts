@@ -4,17 +4,18 @@ import type { User, AuthResponse } from "@chat/shared"
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001"
 
 interface AuthState {
-  user:       User | null
-  token:      string | null  // BFF JWT (7d)
-  chat_token: string | null  // Rust engine JWT (7d)
+  user:           User | null
+  token:          string | null  // BFF JWT (7d)
+  chat_token:     string | null  // Rust engine JWT (7d)
+  email_verified: boolean
 }
 
 function load(): AuthState {
   try {
     const raw = localStorage.getItem("auth")
-    return raw ? JSON.parse(raw) : { user: null, token: null, chat_token: null }
+    return raw ? JSON.parse(raw) : { user: null, token: null, chat_token: null, email_verified: false }
   } catch {
-    return { user: null, token: null, chat_token: null }
+    return { user: null, token: null, chat_token: null, email_verified: false }
   }
 }
 
@@ -24,10 +25,11 @@ function persist() {
   localStorage.setItem("auth", JSON.stringify(state))
 }
 
-function applyResponse(data: AuthResponse) {
-  state.user       = data.user
-  state.token      = data.token
-  state.chat_token = data.chat_token
+function applyResponse(data: AuthResponse & { email_verified?: boolean }) {
+  state.user           = data.user
+  state.token          = data.token
+  state.chat_token     = data.chat_token
+  state.email_verified = data.email_verified ?? false
   persist()
 }
 
@@ -78,17 +80,19 @@ export function useAuthStore() {
   }
 
   function logout() {
-    state.user       = null
-    state.token      = null
-    state.chat_token = null
+    state.user           = null
+    state.token          = null
+    state.chat_token     = null
+    state.email_verified = false
     localStorage.removeItem("auth")
     window.dispatchEvent(new Event("chat:logout"))
   }
 
   return {
-    get user()       { return state.user },
-    get token()      { return state.token },
-    get chat_token() { return state.chat_token },
+    get user()           { return state.user },
+    get token()          { return state.token },
+    get chat_token()     { return state.chat_token },
+    get email_verified() { return state.email_verified },
     register,
     login,
     applyResponse,

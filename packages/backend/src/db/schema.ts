@@ -1,12 +1,13 @@
 import { pgTable, text, bigint, boolean, integer } from "drizzle-orm/pg-core"
 
 export const users = pgTable("users", {
-  id:            text("id").primaryKey(),
-  username:      text("username").notNull().unique(),
-  email:         text("email").unique(),
-  password_hash: text("password_hash").notNull(),
-  is_admin:      boolean("is_admin").notNull().default(false),
-  created_at:    bigint("created_at", { mode: "number" }).notNull(),
+  id:             text("id").primaryKey(),
+  username:       text("username").notNull().unique(),
+  email:          text("email").unique(),
+  email_verified: boolean("email_verified").notNull().default(false),
+  password_hash:  text("password_hash").notNull(),
+  is_admin:       boolean("is_admin").notNull().default(false),
+  created_at:     bigint("created_at", { mode: "number" }).notNull(),
 })
 
 export const profiles = pgTable("profiles", {
