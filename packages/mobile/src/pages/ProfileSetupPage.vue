@@ -47,7 +47,12 @@
       <!-- ── OTP экран ─────────────────────────────────────────────────── -->
       <template v-else>
         <div class="otp-head">
-          <div class="otp-icon">✉️</div>
+          <div class="otp-icon">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2.5"/>
+              <polyline points="2,4 12,13 22,4"/>
+            </svg>
+          </div>
           <h2>Подтвердите email</h2>
           <p class="sub">Код отправлен на<br><strong>{{ email }}</strong></p>
         </div>
@@ -340,28 +345,30 @@ input:focus { border-color: var(--accent); outline: none; }
   gap: 10px;
   text-align: center;
 }
-.otp-icon { font-size: 44px; }
+.otp-icon { color: var(--accent); }
 .otp-head h2 { font-size: 20px; font-weight: 800; }
 
 .otp-boxes {
   display: flex;
-  gap: 10px;
+  gap: 6px;
   justify-content: center;
 }
 
 .otp-box {
-  width: 46px;
-  height: 56px;
+  flex: 1;
+  min-width: 0;
+  max-width: 44px;
+  height: 52px;
   text-align: center;
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 700;
-  border-radius: 12px;
+  border-radius: 10px;
   padding: 0;
   caret-color: var(--accent);
 }
 .otp-box:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.15);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.15);
   outline: none;
 }
 
