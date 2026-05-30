@@ -10,8 +10,8 @@ import { registerPushNotifications } from './composables/usePushNotifications'
 const auth = useAuthStore()
 
 onMounted(() => {
-  if (auth.chat_token) {
-    registerPushNotifications(auth.chat_token).catch(() => {})
+  if (auth.token) {
+    registerPushNotifications().catch(() => {})
   }
 })
 </script>

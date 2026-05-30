@@ -5,6 +5,8 @@ import { authRoutes }   from "./routes/auth"
 import { authGuard }    from "./middleware/auth"
 import { profileRoutes, searchRoutes, contactRoutes, notificationRoutes } from "./routes/profile"
 import { adminRoutes }  from "./routes/admin"
+import { db }           from "./db"
+import { deviceTokens } from "./db/schema"
 
 const CHAT_ENGINE = process.env.CHAT_SERVER_URL ?? "http://chat-engine:8080"
 const CHAT_WS     = CHAT_ENGINE.replace(/^http/, "ws")
@@ -178,19 +180,22 @@ const app = new Elysia()
     }
   )
 
-  .post(
-    "/register-fcm-token",
-    async ({ headers, body, set }) => {
-      const chatToken = headers["x-chat-token"]
-      if (!chatToken) { set.status = 400; return { error: "missing X-Chat-Token header" } }
-      const res = await fetch(`${CHAT_ENGINE}/register-token?token=${chatToken}`, {
-        method:  "POST",
-        headers: { "content-type": "application/json" },
-        body:    JSON.stringify(body),
-      })
-      return res.json()
-    },
-    { body: t.Object({ token: t.String() }) }
+  .use(
+    new Elysia()
+      .use(authGuard)
+      .post(
+        "/register-fcm-token",
+        async ({ currentUser, body }) => {
+          await db.insert(deviceTokens)
+            .values({ user_id: currentUser.id, fcm_token: body.token, updated_at: Date.now() })
+            .onConflictDoUpdate({
+              target: deviceTokens.user_id,
+              set: { fcm_token: body.token, updated_at: Date.now() },
+            })
+          return { ok: true }
+        },
+        { body: t.Object({ token: t.String() }) }
+      )
   )
 
   .listen(PORT)

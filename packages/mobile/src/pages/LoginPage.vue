@@ -125,7 +125,7 @@ async function submit() {
   try {
     if (mode.value === 'login') {
       await auth.login(username.value, password.value)
-      if (auth.chat_token) registerPushNotifications(auth.chat_token).catch(() => {})
+      registerPushNotifications().catch(() => {})
       router.push(auth.email_verified ? '/contacts' : '/setup')
     } else {
       if (password.value !== confirm.value) return

@@ -216,7 +216,7 @@ async function verifyOtp() {
     const data = await res.json()
     if (!res.ok) throw new Error(data.error ?? 'Неверный код')
 
-    if (auth.chat_token) registerPushNotifications(auth.chat_token).catch(() => {})
+    registerPushNotifications().catch(() => {})
     router.push('/contacts')
   } catch (e: any) {
     error.value = e.message

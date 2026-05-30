@@ -36,6 +36,13 @@ export const otpCodes = pgTable("otp_codes", {
   attempts:   integer("attempts").notNull().default(0),
 })
 
+// FCM device tokens (also written by Rust engine via /register-token)
+export const deviceTokens = pgTable("device_tokens", {
+  user_id:    text("user_id").primaryKey(),
+  fcm_token:  text("fcm_token").notNull(),
+  updated_at: bigint("updated_at", { mode: "number" }).notNull(),
+})
+
 // Запрос на добавление в контакты
 export const contactRequests = pgTable("contact_requests", {
   id:          text("id").primaryKey(),
