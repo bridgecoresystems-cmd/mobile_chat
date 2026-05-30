@@ -67,9 +67,28 @@ services:
       PORT:             3001
       RESEND_API_KEY:   ${RESEND_API_KEY}
       RESEND_FROM:      ${RESEND_FROM:-noreply@bcs301.site}
-    ports:
-      - "127.0.0.1:3001:3001"
     restart: unless-stopped
+    networks:
+      - default
+      - konekt-net
+
+  admin:
+    build:
+      context: .
+      dockerfile: packages/admin/Dockerfile
+    container_name: konekt_admin
+    depends_on:
+      - backend
+    environment:
+      NUXT_PUBLIC_API_URL: ${ADMIN_API_URL:-https://konekt.bridgecore.tech}
+    restart: unless-stopped
+    networks:
+      - default
+      - konekt-net
+
+networks:
+  konekt-net:
+    external: true
 
 volumes:
   pgdata:
