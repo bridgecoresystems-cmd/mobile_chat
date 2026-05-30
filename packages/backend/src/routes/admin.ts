@@ -67,6 +67,62 @@ export const adminRoutes = new Elysia({ prefix: "/admin" })
     }
   )
 
+  // ── Single user ───────────────────────────────────────────────────────────
+  .get(
+    "/users/:id",
+    async ({ params, set }) => {
+      const rows = await db
+        .select({
+          id:         users.id,
+          username:   users.username,
+          email:      users.email,
+          is_admin:   users.is_admin,
+          created_at: users.created_at,
+          first_name: profiles.first_name,
+          last_name:  profiles.last_name,
+          phone:      profiles.phone,
+          avatar_url: profiles.avatar_url,
+        })
+        .from(users)
+        .leftJoin(profiles, eq(users.id, profiles.user_id))
+        .where(eq(users.id, params.id))
+        .limit(1)
+
+      if (!rows.length) { set.status = 404; return { error: "not found" } }
+      return rows[0]
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // ── Update user profile ────────────────────────────────────────────────────
+  .patch(
+    "/users/:id/profile",
+    async ({ params, body }) => {
+      const now = Date.now()
+      const profileSet: Record<string, unknown> = { updated_at: now }
+      if (body.first_name !== undefined) profileSet.first_name = body.first_name
+      if (body.last_name  !== undefined) profileSet.last_name  = body.last_name
+      if (body.phone      !== undefined) profileSet.phone      = body.phone
+
+      if (Object.keys(profileSet).length > 1) {
+        await db.update(profiles).set(profileSet).where(eq(profiles.user_id, params.id))
+      }
+      if (body.email !== undefined) {
+        await db.update(users).set({ email: body.email }).where(eq(users.id, params.id))
+      }
+      return { ok: true }
+    },
+    {
+      params: t.Object({ id: t.String() }),
+      body:   t.Object({
+        first_name: t.Optional(t.String()),
+        last_name:  t.Optional(t.String()),
+        phone:      t.Optional(t.String()),
+        email:      t.Optional(t.Nullable(t.String())),
+      }),
+    }
+  )
+
   // ── Delete user ───────────────────────────────────────────────────────────
   .delete(
     "/users/:id",
