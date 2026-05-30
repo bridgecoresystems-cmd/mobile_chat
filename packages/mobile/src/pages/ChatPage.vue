@@ -166,6 +166,7 @@ import { Capacitor } from '@capacitor/core'
 import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
 import type { Contact } from '@chat/shared'
 import type { Message } from '../composables/useChat'
+import { db } from '../db/cache'
 
 const { t, locale } = useI18n()
 
@@ -379,10 +380,17 @@ watch(messages, scrollBottom, { deep: true })
 watch(typingText, (val) => { if (val) scrollBottom() })
 
 async function loadContactInfo() {
+  // Show name immediately from cache — no UID flash on slow internet
+  const cached = await db.contacts.toArray()
+  contact.value = cached.find(c => c.room_id === roomId) ?? null
+
   try {
     const res = await fetch(`${API}/contacts`, { headers: bffHeaders() })
-    const list: Contact[] = await res.json()
-    contact.value = list.find(c => c.room_id === roomId) ?? null
+    if (res.ok) {
+      const list: Contact[] = await res.json()
+      contact.value = list.find(c => c.room_id === roomId) ?? null
+      await db.contacts.bulkPut(list)
+    }
   } catch {}
 }
 
