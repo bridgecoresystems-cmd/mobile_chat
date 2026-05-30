@@ -19,21 +19,14 @@
       </div>
 
       <div class="tabs">
-        <button :class="{ active: mode === 'login' }"    @click="switchMode('login')">{{ t('login_tab') }}</button>
-        <button :class="{ active: mode === 'register' }" @click="switchMode('register')">{{ t('login_register_tab') }}</button>
-        <button :class="{ active: mode === 'otp' }"      @click="switchMode('otp')">Email</button>
+        <button :class="{ active: mode === 'login' }"    @click="mode = 'login'; error = ''">{{ t('login_tab') }}</button>
+        <button :class="{ active: mode === 'register' }" @click="mode = 'register'; error = ''">{{ t('login_register_tab') }}</button>
       </div>
 
-      <!-- Login / Register form -->
-      <form v-if="mode !== 'otp'" @submit.prevent="submit">
+      <form @submit.prevent="submit">
         <div class="field">
           <label>{{ t('login_username') }}</label>
           <input v-model="username" placeholder="username" autocomplete="username" />
-        </div>
-
-        <div v-if="mode === 'register'" class="field">
-          <label>{{ t('login_email') }}</label>
-          <input v-model="email" type="email" placeholder="example@mail.com" autocomplete="email" />
         </div>
 
         <div class="field">
@@ -91,47 +84,6 @@
           {{ loading ? '...' : mode === 'login' ? t('login_submit') : t('login_register_btn') }}
         </button>
       </form>
-
-      <!-- OTP form -->
-      <div v-else class="otp-flow">
-        <!-- Step 1: enter email -->
-        <form v-if="otpStep === 'email'" @submit.prevent="sendOtp" class="otp-form">
-          <div class="field">
-            <label>Email</label>
-            <input v-model="otpEmail" type="email" placeholder="your@email.com" autocomplete="email" />
-          </div>
-          <p class="otp-hint">Отправим 6-значный код на вашу почту</p>
-          <p v-if="error" class="error">{{ error }}</p>
-          <button type="submit" class="btn-primary" :disabled="loading || !otpEmail">
-            {{ loading ? '...' : 'Получить код' }}
-          </button>
-        </form>
-
-        <!-- Step 2: enter OTP code -->
-        <div v-else class="otp-form">
-          <p class="otp-sent-hint">Код отправлен на<br><strong>{{ otpEmail }}</strong></p>
-          <div class="otp-boxes">
-            <input
-              v-for="(_, i) in otpDigits"
-              :key="i"
-              :ref="el => { if (el) otpRefs[i] = el as HTMLInputElement }"
-              v-model="otpDigits[i]"
-              class="otp-box"
-              type="text"
-              inputmode="numeric"
-              maxlength="1"
-              @input="onOtpInput(i)"
-              @keydown.backspace="onOtpBackspace(i)"
-              @paste.prevent="onOtpPaste($event)"
-            />
-          </div>
-          <p v-if="error" class="error">{{ error }}</p>
-          <button class="btn-primary" :disabled="loading || otpDigits.join('').length < 6" @click="verifyOtp">
-            {{ loading ? '...' : 'Войти' }}
-          </button>
-          <button class="btn-link" @click="otpStep = 'email'; error = ''">← Изменить email</button>
-        </div>
-      </div>
     </div>
   </div>
 </template>
@@ -147,11 +99,8 @@ const router = useRouter()
 const auth   = useAuthStore()
 const { t }  = useI18n()
 
-const API = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
-
-const mode        = ref<'login' | 'register' | 'otp'>('login')
+const mode        = ref<'login' | 'register'>('login')
 const username    = ref('')
-const email       = ref('')
 const password    = ref('')
 const confirm     = ref('')
 const showPass    = ref(false)
@@ -159,79 +108,6 @@ const showConfirm = ref(false)
 const error       = ref('')
 const loading     = ref(false)
 
-// OTP state
-const otpStep   = ref<'email' | 'code'>('email')
-const otpEmail  = ref('')
-const otpDigits = ref<string[]>(Array(6).fill(''))
-const otpRefs   = ref<HTMLInputElement[]>([])
-
-function switchMode(m: 'login' | 'register' | 'otp') {
-  mode.value    = m
-  error.value   = ''
-  otpStep.value = 'email'
-  otpDigits.value = Array(6).fill('')
-}
-
-function onOtpInput(i: number) {
-  const val = otpDigits.value[i]
-  if (val && i < 5) otpRefs.value[i + 1]?.focus()
-}
-
-function onOtpBackspace(i: number) {
-  if (!otpDigits.value[i] && i > 0) {
-    otpDigits.value[i - 1] = ''
-    otpRefs.value[i - 1]?.focus()
-  }
-}
-
-function onOtpPaste(e: ClipboardEvent) {
-  const digits = (e.clipboardData?.getData('text') ?? '').replace(/\D/g, '').slice(0, 6)
-  for (let i = 0; i < 6; i++) otpDigits.value[i] = digits[i] ?? ''
-  otpRefs.value[Math.min(digits.length, 5)]?.focus()
-}
-
-async function sendOtp() {
-  error.value   = ''
-  loading.value = true
-  try {
-    const res = await fetch(`${API}/auth/send-otp`, {
-      method:  'POST',
-      headers: { 'content-type': 'application/json' },
-      body:    JSON.stringify({ email: otpEmail.value }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error ?? 'Ошибка отправки')
-    otpStep.value = 'code'
-    setTimeout(() => otpRefs.value[0]?.focus(), 100)
-  } catch (e: any) {
-    error.value = e.message
-  } finally {
-    loading.value = false
-  }
-}
-
-async function verifyOtp() {
-  error.value   = ''
-  loading.value = true
-  try {
-    const res = await fetch(`${API}/auth/verify-otp`, {
-      method:  'POST',
-      headers: { 'content-type': 'application/json' },
-      body:    JSON.stringify({ email: otpEmail.value, code: otpDigits.value.join('') }),
-    })
-    const data = await res.json()
-    if (!res.ok) throw new Error(data.error ?? 'Неверный код')
-    auth.applyResponse(data)
-    if (data.chat_token) registerPushNotifications(data.chat_token).catch(() => {})
-    router.push('/contacts')
-  } catch (e: any) {
-    error.value = e.message
-  } finally {
-    loading.value = false
-  }
-}
-
-// Конверты: разные размеры, позиции, скорости, дрейф по X
 const envelopes = [
   { id: 1, size: 32, stroke: 1.2, style: { left: '6%',  animationDuration: '9s',  animationDelay: '0s',    '--tx': '12vw',  '--env-op': 0.35 } },
   { id: 2, size: 18, stroke: 1.4, style: { left: '20%', animationDuration: '13s', animationDelay: '-5s',   '--tx': '-8vw',  '--env-op': 0.26 } },
@@ -249,14 +125,13 @@ async function submit() {
   try {
     if (mode.value === 'login') {
       await auth.login(username.value, password.value)
+      if (auth.chat_token) registerPushNotifications(auth.chat_token).catch(() => {})
+      router.push('/contacts')
     } else {
       if (password.value !== confirm.value) return
-      await auth.register(username.value, password.value, email.value)
+      await auth.register(username.value, password.value)
+      router.push('/setup')
     }
-    if (auth.chat_token) {
-      registerPushNotifications(auth.chat_token).catch(() => {})
-    }
-    router.push('/contacts')
   } catch (e: any) {
     error.value = e.message
   } finally {
@@ -280,7 +155,6 @@ async function submit() {
   animation: fadeIn 0.4s ease;
 }
 
-/* ── Конверты ──────────────────────────────────────────────────────────────── */
 .envelopes {
   position: fixed;
   inset: 0;
@@ -297,26 +171,13 @@ async function submit() {
 }
 
 @keyframes flyUp {
-  0% {
-    transform: translateY(0) translateX(0) rotate(-8deg);
-    opacity: 0;
-  }
-  8% {
-    opacity: var(--env-op, .1);
-  }
-  45% {
-    transform: translateY(-50vh) translateX(calc(var(--tx, 0) * .5)) rotate(4deg);
-  }
-  88% {
-    opacity: var(--env-op, .1);
-  }
-  100% {
-    transform: translateY(-115vh) translateX(var(--tx, 0)) rotate(-6deg);
-    opacity: 0;
-  }
+  0%   { transform: translateY(0) translateX(0) rotate(-8deg); opacity: 0; }
+  8%   { opacity: var(--env-op, .1); }
+  45%  { transform: translateY(-50vh) translateX(calc(var(--tx, 0) * .5)) rotate(4deg); }
+  88%  { opacity: var(--env-op, .1); }
+  100% { transform: translateY(-115vh) translateX(var(--tx, 0)) rotate(-6deg); opacity: 0; }
 }
 
-/* ── Карточка ──────────────────────────────────────────────────────────────── */
 .card {
   position: relative;
   z-index: 1;
@@ -335,23 +196,7 @@ async function submit() {
   animation: scaleIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-.logo-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 12px;
-}
-
-.logo-icon {
-  font-size: 42px;
-  filter: drop-shadow(0 4px 10px rgba(var(--accent-rgb), 0.3));
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
+.logo-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
 
 h1 {
   font-size: 28px;
@@ -389,17 +234,8 @@ h1 {
   box-shadow: var(--shadow-sm);
 }
 
-form { 
-  display: flex; 
-  flex-direction: column; 
-  gap: 18px; 
-}
-
-.field { 
-  display: flex; 
-  flex-direction: column; 
-  gap: 8px; 
-}
+form  { display: flex; flex-direction: column; gap: 18px; }
+.field { display: flex; flex-direction: column; gap: 8px; }
 
 .field label {
   font-size: 11px;
@@ -409,16 +245,8 @@ form {
   letter-spacing: 1px;
 }
 
-.input-wrap {
-  position: relative;
-  display: flex;
-  align-items: center;
-}
-
-.input-wrap input { 
-  width: 100%; 
-  padding-right: 44px; 
-}
+.input-wrap { position: relative; display: flex; align-items: center; }
+.input-wrap input { width: 100%; padding-right: 44px; }
 
 input {
   background: var(--surface);
@@ -431,16 +259,12 @@ input {
   font-weight: 500;
 }
 
-input:focus { 
+input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.1);
-  background: var(--surface);
 }
 
-input::placeholder {
-  color: var(--muted);
-  opacity: 0.6;
-}
+input::placeholder { color: var(--muted); opacity: 0.6; }
 
 .eye-btn {
   position: absolute;
@@ -454,17 +278,9 @@ input::placeholder {
   opacity: 0.7;
   transition: opacity 0.15s;
 }
+.eye-btn:hover { opacity: 1; }
 
-.eye-btn:hover {
-  opacity: 1;
-}
-
-.field-error {
-  font-size: 12px;
-  color: #ef4444;
-  font-weight: 500;
-  margin-top: 2px;
-}
+.field-error { font-size: 12px; color: #ef4444; font-weight: 500; margin-top: 2px; }
 
 .error {
   background: rgba(239, 68, 68, 0.08);
@@ -489,69 +305,7 @@ input::placeholder {
   margin-top: 8px;
 }
 
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.4);
-}
-
-.btn-primary:active:not(:disabled) {
-  transform: translateY(0);
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  box-shadow: none;
-}
-
-/* ── OTP ───────────────────────────────────────────────────────────────────── */
-.otp-flow { display: flex; flex-direction: column; }
-.otp-form { display: flex; flex-direction: column; gap: 18px; }
-
-.otp-hint {
-  font-size: 13px;
-  color: var(--muted);
-  text-align: center;
-  margin: -6px 0;
-}
-
-.otp-sent-hint {
-  font-size: 14px;
-  color: var(--muted);
-  text-align: center;
-  line-height: 1.6;
-}
-.otp-sent-hint strong { color: var(--text); }
-
-.otp-boxes {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-}
-
-.otp-box {
-  width: 44px;
-  height: 52px;
-  text-align: center;
-  font-size: 22px;
-  font-weight: 700;
-  border-radius: 12px;
-  padding: 0;
-  caret-color: var(--accent);
-}
-.otp-box:focus {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 4px rgba(var(--accent-rgb), 0.15);
-}
-
-.btn-link {
-  background: none;
-  border: none;
-  color: var(--muted);
-  font-size: 13px;
-  text-align: center;
-  cursor: pointer;
-  padding: 4px;
-  transition: color 0.15s;
-}
-.btn-link:hover { color: var(--text); }
+.btn-primary:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(var(--accent-rgb), 0.4); }
+.btn-primary:active:not(:disabled) { transform: translateY(0); }
+.btn-primary:disabled { opacity: 0.5; box-shadow: none; }
 </style>
