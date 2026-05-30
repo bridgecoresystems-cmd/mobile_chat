@@ -8,4 +8,4 @@ start.md
 screens/
 *.tsbuildinfo
 .nuxt/
-.output/
+.output/*.jks
