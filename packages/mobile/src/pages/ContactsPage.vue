@@ -93,6 +93,7 @@ import AppLayout from '../components/AppLayout.vue'
 import { useAuthStore, bffHeaders } from '../stores/auth'
 import { useI18n } from '../composables/useI18n'
 import type { Contact } from '@chat/shared'
+import { db } from '../db/cache'
 
 const router      = useRouter()
 const auth        = useAuthStore()
@@ -170,10 +171,22 @@ watch(sentinel, (el) => { if (el) setupObserver() })
 watch(visible, async () => { await nextTick(); if (sentinel.value) setupObserver() })
 
 async function fetchContacts() {
-  loading.value = true
+  // Show cached data immediately — no spinner if cache has entries
+  const cached = await db.contacts.toArray()
+  if (cached.length) {
+    contacts.value = cached
+    loading.value = false
+  }
+
   try {
     const res = await fetch(`${API}/contacts`, { headers: bffHeaders() })
-    contacts.value = await res.json()
+    if (res.ok) {
+      const fresh: Contact[] = await res.json()
+      contacts.value = fresh
+      await db.contacts.bulkPut(fresh)
+    }
+  } catch {
+    // Offline — cached data already shown above
   } finally {
     loading.value = false
   }

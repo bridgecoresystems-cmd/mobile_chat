@@ -1,5 +1,7 @@
 import { ref, computed, onUnmounted } from "vue"
 import * as protobuf from "protobufjs"
+import Dexie from "dexie"
+import { db } from "../db/cache"
 
 const root = protobuf.Root.fromJSON({
   nested: {
@@ -157,7 +159,7 @@ export function useChat(roomId: string) {
         if (messages.value.some(m => m.id === id)) return
 
         const mine = env.message.sender_id === myUserId
-        messages.value.push({
+        const msg: Message = {
           id,
           senderId:  env.message.sender_id,
           text,
@@ -166,7 +168,9 @@ export function useChat(roomId: string) {
           mine,
           deleted:   false,
           read:      false,
-        })
+        }
+        messages.value.push(msg)
+        db.messages.put({ ...msg, room_id: roomId })
 
         // Auto-send Ack for messages from others (signals "read")
         if (!mine) {
@@ -216,10 +220,17 @@ export function useChat(roomId: string) {
     myUserId   = userId
     savedToken = chatToken
 
+    // Show cached messages immediately before network request
+    const cached = await db.messages
+      .where("[room_id+timestamp]")
+      .between([roomId, Dexie.minKey], [roomId, Dexie.maxKey])
+      .toArray()
+    if (cached.length) messages.value = cached
+
     try {
       const res = await fetch(`${API_URL}/history/${roomId}?limit=50`)
       const history: any[] = await res.json()
-      messages.value = (history ?? [])
+      const fresh = (history ?? [])
         .filter((m) => m.text !== "join" && m.text !== "leave")
         .map((m) => {
           const { text, photoUrl } = decodeStr(m.text ?? "")
@@ -234,6 +245,8 @@ export function useChat(roomId: string) {
             read:      m.read_by_peer ?? false,
           }
         })
+      messages.value = fresh
+      await db.messages.bulkPut(fresh.map(m => ({ ...m, room_id: roomId })))
     } catch {}
 
     connectWs()
