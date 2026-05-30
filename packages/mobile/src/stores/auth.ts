@@ -1,7 +1,9 @@
 import { reactive } from "vue"
+import { Preferences } from "@capacitor/preferences"
 import type { User, AuthResponse } from "@chat/shared"
 
-const API = import.meta.env.VITE_API_URL ?? "http://localhost:3001"
+const API      = import.meta.env.VITE_API_URL ?? "http://localhost:3001"
+const PREF_KEY = "auth_v2"
 
 interface AuthState {
   user:           User | null
@@ -10,19 +12,25 @@ interface AuthState {
   email_verified: boolean
 }
 
-function load(): AuthState {
+const state = reactive<AuthState>({
+  user: null, token: null, chat_token: null, email_verified: false,
+})
+
+// Called once in main.ts before app mounts — loads from native storage
+export async function initAuth() {
   try {
-    const raw = localStorage.getItem("auth")
-    return raw ? JSON.parse(raw) : { user: null, token: null, chat_token: null, email_verified: false }
-  } catch {
-    return { user: null, token: null, chat_token: null, email_verified: false }
-  }
+    const { value } = await Preferences.get({ key: PREF_KEY })
+    if (!value) return
+    const d = JSON.parse(value)
+    state.user           = d.user           ?? null
+    state.token          = d.token          ?? null
+    state.chat_token     = d.chat_token     ?? null
+    state.email_verified = d.email_verified ?? false
+  } catch {}
 }
 
-const state = reactive<AuthState>(load())
-
-function persist() {
-  localStorage.setItem("auth", JSON.stringify(state))
+async function persist() {
+  await Preferences.set({ key: PREF_KEY, value: JSON.stringify(state) })
 }
 
 function applyResponse(data: AuthResponse & { email_verified?: boolean }) {
@@ -33,8 +41,6 @@ function applyResponse(data: AuthResponse & { email_verified?: boolean }) {
   persist()
 }
 
-// Headers for BFF-protected endpoints
-// skipContentType=true используется для FormData (браузер сам проставляет boundary)
 export function bffHeaders(opts?: { skipContentType?: boolean }): HeadersInit {
   const h: Record<string, string> = {
     "authorization": `Bearer ${state.token}`,
@@ -79,12 +85,12 @@ export function useAuthStore() {
     }
   }
 
-  function logout() {
+  async function logout() {
     state.user           = null
     state.token          = null
     state.chat_token     = null
     state.email_verified = false
-    localStorage.removeItem("auth")
+    await Preferences.remove({ key: PREF_KEY })
     window.dispatchEvent(new Event("chat:logout"))
   }
 

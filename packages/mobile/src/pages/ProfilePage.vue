@@ -291,8 +291,8 @@ async function save() {
   }
 }
 
-function logout() {
-  auth.logout()
+async function logout() {
+  await auth.logout()
   router.push('/login')
 }
 
