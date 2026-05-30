@@ -29,7 +29,7 @@ export async function registerPushNotifications(chatToken: string) {
 
   PushNotifications.addListener("registration", async ({ value: fcmToken }) => {
     try {
-      await fetch(`${API}/register-fcm-token`, {
+      const res = await fetch(`${API}/register-fcm-token`, {
         method:  "POST",
         headers: {
           "content-type": "application/json",
@@ -37,7 +37,14 @@ export async function registerPushNotifications(chatToken: string) {
         },
         body: JSON.stringify({ token: fcmToken }),
       })
-    } catch {}
+      if (!res.ok) console.error("[FCM] register-fcm-token failed:", res.status, await res.text())
+    } catch (e) {
+      console.error("[FCM] registration fetch error:", e)
+    }
+  })
+
+  PushNotifications.addListener("registrationError", (err) => {
+    console.error("[FCM] registration error:", err.error)
   })
 
   PushNotifications.addListener("pushNotificationReceived", (notification) => {
