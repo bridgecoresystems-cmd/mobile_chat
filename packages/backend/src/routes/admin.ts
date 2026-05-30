@@ -1,7 +1,7 @@
 import { Elysia, t }              from "elysia"
 import { eq, sql, desc }          from "drizzle-orm"
 import { db }                     from "../db"
-import { users, profiles, contacts, contactRequests } from "../db/schema"
+import { users, profiles, contacts, contactRequests, broadcasts } from "../db/schema"
 import { authGuard }              from "../middleware/auth"
 
 const CHAT_ENGINE = () => process.env.CHAT_SERVER_URL ?? "http://chat-engine:8080"
@@ -157,10 +157,51 @@ export const adminRoutes = new Elysia({ prefix: "/admin" })
     return res.json()
   })
 
-  // ── Broadcast push notification to all users ───────────────────────────────
+  // ── Broadcasts list ────────────────────────────────────────────────────────
+  .get(
+    "/broadcasts",
+    async ({ query }) => {
+      const limit  = Math.min(query.limit ?? 50, 200)
+      const offset = query.offset ?? 0
+
+      const rows = await db
+        .select()
+        .from(broadcasts)
+        .orderBy(desc(broadcasts.created_at))
+        .limit(limit)
+        .offset(offset)
+
+      const [{ count }] = await db.select({ count: sql<number>`count(*)::int` }).from(broadcasts)
+      return { broadcasts: rows, total: count }
+    },
+    { query: t.Object({ limit: t.Optional(t.Numeric()), offset: t.Optional(t.Numeric()) }) }
+  )
+
+  // ── Single broadcast ───────────────────────────────────────────────────────
+  .get(
+    "/broadcasts/:id",
+    async ({ params, set }) => {
+      const row = await db.query.broadcasts.findFirst({ where: eq(broadcasts.id, params.id) })
+      if (!row) { set.status = 404; return { error: "not found" } }
+      return row
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // ── Delete broadcast record ────────────────────────────────────────────────
+  .delete(
+    "/broadcasts/:id",
+    async ({ params }) => {
+      await db.delete(broadcasts).where(eq(broadcasts.id, params.id))
+      return { ok: true }
+    },
+    { params: t.Object({ id: t.String() }) }
+  )
+
+  // ── Send broadcast (creates record + pushes FCM) ───────────────────────────
   .post(
     "/broadcast",
-    async ({ body, set }) => {
+    async ({ body, currentUser, set }) => {
       const { signChatJwt } = await import("../lib/chat-jwt")
       const chatToken = await signChatJwt("admin")
       const res = await fetch(`${CHAT_ENGINE()}/broadcast?token=${chatToken}`, {
@@ -169,7 +210,22 @@ export const adminRoutes = new Elysia({ prefix: "/admin" })
         body:    JSON.stringify({ title: body.title, body: body.body, data: body.data ?? {} }),
       })
       if (!res.ok) { set.status = 502; return { error: "broadcast failed" } }
-      return res.json()
+
+      const result = await res.json() as { recipients?: number }
+      const recipients = result.recipients ?? 0
+
+      const id = crypto.randomUUID()
+      await db.insert(broadcasts).values({
+        id,
+        title:               body.title,
+        body:                body.body,
+        recipients,
+        created_by:          currentUser!.id,
+        created_by_username: currentUser!.username,
+        created_at:          Date.now(),
+      })
+
+      return { ok: true, id, recipients }
     },
     {
       body: t.Object({
