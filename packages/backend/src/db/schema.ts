@@ -1,4 +1,4 @@
-import { pgTable, text, bigint, boolean } from "drizzle-orm/pg-core"
+import { pgTable, text, bigint, boolean, integer } from "drizzle-orm/pg-core"
 
 export const users = pgTable("users", {
   id:            text("id").primaryKey(),
@@ -25,6 +25,14 @@ export const contacts = pgTable("contacts", {
   contact_id: text("contact_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   room_id:    text("room_id").notNull(),
   created_at: bigint("created_at", { mode: "number" }).notNull(),
+})
+
+// OTP коды для входа по email
+export const otpCodes = pgTable("otp_codes", {
+  email:      text("email").primaryKey(),
+  code:       text("code").notNull(),
+  expires_at: bigint("expires_at", { mode: "number" }).notNull(),
+  attempts:   integer("attempts").notNull().default(0),
 })
 
 // Запрос на добавление в контакты

@@ -91,6 +91,7 @@ export function useAuthStore() {
     get chat_token() { return state.chat_token },
     register,
     login,
+    applyResponse,
     logout,
     refreshChatToken,
   }

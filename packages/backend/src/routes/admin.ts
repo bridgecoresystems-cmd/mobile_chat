@@ -100,3 +100,26 @@ export const adminRoutes = new Elysia({ prefix: "/admin" })
     if (!res.ok) return []
     return res.json()
   })
+
+  // ── Broadcast push notification to all users ───────────────────────────────
+  .post(
+    "/broadcast",
+    async ({ body, set }) => {
+      const { signChatJwt } = await import("../lib/chat-jwt")
+      const chatToken = await signChatJwt("admin")
+      const res = await fetch(`${CHAT_ENGINE()}/broadcast?token=${chatToken}`, {
+        method:  "POST",
+        headers: { "content-type": "application/json" },
+        body:    JSON.stringify({ title: body.title, body: body.body, data: body.data ?? {} }),
+      })
+      if (!res.ok) { set.status = 502; return { error: "broadcast failed" } }
+      return res.json()
+    },
+    {
+      body: t.Object({
+        title: t.String({ minLength: 1 }),
+        body:  t.String({ minLength: 1 }),
+        data:  t.Optional(t.Record(t.String(), t.String())),
+      }),
+    }
+  )

@@ -172,6 +172,20 @@ export const contactRoutes = new Elysia({ prefix: "/contacts" })
         to_id: params.userId, status: "pending",
         room_id: roomId, created_at: Date.now(),
       })
+
+      // Notify the target user
+      const chatToken = await signChatJwt(currentUser.id)
+      await fetch(`${CHAT_ENGINE()}/push?token=${chatToken}`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          user_id: params.userId,
+          title:   "Новый запрос",
+          body:    `${currentUser!.username} хочет добавить вас в контакты`,
+          data:    { type: "contact_request", from_id: currentUser!.id },
+        }),
+      }).catch(() => {})
+
       return { ok: true, status: "pending" }
     },
     { params: t.Object({ userId: t.String() }) }
@@ -246,13 +260,25 @@ export const notificationRoutes = new Elysia({ prefix: "/notifications" })
         { id: crypto.randomUUID(), user_id: req.to_id,   contact_id: req.from_id, room_id: req.room_id, created_at: now },
       ]).onConflictDoNothing()
 
-      // Создаём комнату в Rust engine
+      // Создаём комнату и уведомляем инициатора запроса
       const chatToken = await signChatJwt(currentUser.id)
-      await fetch(`${CHAT_ENGINE()}/rooms?token=${chatToken}`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ name: req.room_id, members: [req.from_id] }),
-      }).catch(() => {})
+      await Promise.all([
+        fetch(`${CHAT_ENGINE()}/rooms?token=${chatToken}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ name: req.room_id, members: [req.from_id] }),
+        }).catch(() => {}),
+        fetch(`${CHAT_ENGINE()}/push?token=${chatToken}`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            user_id: req.from_id,
+            title:   "Запрос принят",
+            body:    `${currentUser!.username} принял ваш запрос`,
+            data:    { type: "contact_accepted", room_id: req.room_id },
+          }),
+        }).catch(() => {}),
+      ])
 
       return { ok: true, room_id: req.room_id }
     },
