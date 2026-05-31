@@ -14,7 +14,8 @@ export const router = createRouter({
     { path: '/notifications', component: () => import('../pages/NotificationsPage.vue'),meta: { auth: true, needsProfile: true } },
     { path: '/profile',       component: () => import('../pages/ProfilePage.vue'),      meta: { auth: true, needsProfile: true } },
     { path: '/search',        component: () => import('../pages/SearchPage.vue'),       meta: { auth: true, needsProfile: true } },
-    { path: '/chat/:roomId',  component: () => import('../pages/ChatPage.vue'),         meta: { auth: true, needsProfile: true } },
+    { path: '/chat/:roomId',       component: () => import('../pages/ChatPage.vue'),         meta: { auth: true, needsProfile: true } },
+    { path: '/contact/:contactId', component: () => import('../pages/ContactDetailPage.vue'), meta: { auth: true, needsProfile: true } },
   ],
 })
 

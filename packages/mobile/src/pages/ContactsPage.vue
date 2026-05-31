@@ -193,7 +193,7 @@ async function fetchContacts() {
 }
 
 function openChat(c: Contact) {
-  router.push(`/chat/${c.room_id}`)
+  router.push(`/contact/${c.contact_id}`)
 }
 
 onMounted(fetchContacts)
