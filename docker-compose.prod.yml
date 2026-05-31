@@ -58,15 +58,19 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       chat-engine:
         condition: service_started
     environment:
-      DATABASE_URL:     postgres://chat_user:${DB_PASSWORD:-chat_pass}@postgres:5432/chat_db
-      JWT_SECRET:       ${JWT_SECRET}
-      CHAT_SERVER_URL:  http://chat-engine:8080
-      PORT:             3001
-      RESEND_API_KEY:   ${RESEND_API_KEY}
-      RESEND_FROM:      ${RESEND_FROM:-noreply@bcs301.site}
+      DATABASE_URL:        postgres://chat_user:${DB_PASSWORD:-chat_pass}@postgres:5432/chat_db
+      JWT_SECRET:          ${JWT_SECRET}
+      CHAT_SERVER_URL:     http://chat-engine:8080
+      PORT:                3001
+      REDIS_URL:           redis://redis:6379
+      FCM_SERVICE_ACCOUNT: ${FCM_SERVICE_ACCOUNT}
+      RESEND_API_KEY:      ${RESEND_API_KEY}
+      RESEND_FROM:         ${RESEND_FROM:-noreply@bcs301.site}
     restart: unless-stopped
     networks:
       - default
