@@ -91,11 +91,12 @@ export function useChat(roomId: string) {
   const isConnected = ref(false)
 
   let ws: WebSocket | null = null
-  let typingTimer:   ReturnType<typeof setTimeout> | null = null
+  let typingTimer:    ReturnType<typeof setTimeout> | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let reconnectDelay = 1000
-  let myUserId = ""
+  let myUserId   = ""
   let savedToken = ""
+  let paused     = false
 
   function decodeStr(str: string): { text: string; photoUrl: string | null } {
     try {
@@ -109,7 +110,7 @@ export function useChat(roomId: string) {
   }
 
   function scheduleReconnect() {
-    if (!savedToken || reconnectTimer) return
+    if (!savedToken || reconnectTimer || paused) return
     reconnectTimer = setTimeout(() => {
       reconnectTimer = null
       connectWs()
@@ -346,8 +347,21 @@ export function useChat(roomId: string) {
     ws?.close()
   }
 
+  // Close WS without clearing savedToken — engine marks user offline → FCM kicks in.
+  // paused=true prevents scheduleReconnect from firing while app is in background.
+  function pauseWs() {
+    paused = true
+    if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
+    stopTyping()
+    ws?.close()
+    ws = null
+  }
+
   function handleVisibility() {
-    if (document.visibilityState === "visible" && !isConnected.value && savedToken) {
+    if (document.visibilityState === "hidden") {
+      pauseWs()
+    } else if (document.visibilityState === "visible" && savedToken) {
+      paused = false
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
       reconnectDelay = 1000
       connectWs()
