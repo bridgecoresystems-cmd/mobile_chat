@@ -357,6 +357,19 @@ export function useChat(roomId: string) {
     ws = null
   }
 
+  // On foreground return: re-fetch history to pick up read_by_peer changes
+  // that happened while the app was backgrounded (ACKs saved to DB by other clients).
+  async function refreshReadStatus() {
+    try {
+      const res = await fetch(`${API_URL}/history/${roomId}?limit=50`)
+      const history: any[] = await res.json()
+      for (const h of history) {
+        const msg = messages.value.find(m => m.id === String(h.id))
+        if (msg && !msg.read && h.read_by_peer) msg.read = true
+      }
+    } catch {}
+  }
+
   function handleVisibility() {
     if (document.visibilityState === "hidden") {
       pauseWs()
@@ -365,6 +378,7 @@ export function useChat(roomId: string) {
       if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null }
       reconnectDelay = 1000
       connectWs()
+      refreshReadStatus()
     }
   }
 
