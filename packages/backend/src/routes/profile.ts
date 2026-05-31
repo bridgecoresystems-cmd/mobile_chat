@@ -1,7 +1,7 @@
 import { Elysia, t }        from "elysia"
-import { eq, ilike, sql }   from "drizzle-orm"
+import { eq, ilike, sql, desc } from "drizzle-orm"
 import { db }               from "../db"
-import { profiles, users, contacts, contactRequests } from "../db/schema"
+import { profiles, users, contacts, contactRequests, broadcasts } from "../db/schema"
 import { authGuard }        from "../middleware/auth"
 import { signChatJwt }      from "../lib/chat-jwt"
 
@@ -202,38 +202,75 @@ export const contactRoutes = new Elysia({ prefix: "/contacts" })
     { params: t.Object({ userId: t.String() }) }
   )
 
-// ── Notifications (contact requests) ─────────────────────────────────────────
+// ── Notifications (contact requests + broadcasts) ─────────────────────────────
 export const notificationRoutes = new Elysia({ prefix: "/notifications" })
   .use(authGuard)
 
-  // Входящие запросы (pending) + недавно принятые/отклонённые (последние 50)
+  // Contact requests + recent broadcasts, with is_new flag on broadcasts
   .get("/", async ({ currentUser }) => {
-    const rows = await db
-      .select({
-        id: contactRequests.id, status: contactRequests.status,
-        room_id: contactRequests.room_id,
-        created_at: contactRequests.created_at, resolved_at: contactRequests.resolved_at,
-        from_id: contactRequests.from_id,
-        username: users.username,
-        first_name: profiles.first_name, last_name: profiles.last_name, phone: profiles.phone,
-      })
-      .from(contactRequests)
-      .leftJoin(users,    eq(contactRequests.from_id, users.id))
-      .leftJoin(profiles, eq(contactRequests.from_id, profiles.user_id))
-      .where(eq(contactRequests.to_id, currentUser.id))
-      .orderBy(sql`${contactRequests.created_at} DESC`)
-      .limit(50)
+    const [contactRows, broadcastRows, profileRow] = await Promise.all([
+      db.select({
+          id: contactRequests.id, status: contactRequests.status,
+          room_id: contactRequests.room_id,
+          created_at: contactRequests.created_at, resolved_at: contactRequests.resolved_at,
+          from_id: contactRequests.from_id,
+          username: users.username,
+          first_name: profiles.first_name, last_name: profiles.last_name, phone: profiles.phone,
+        })
+        .from(contactRequests)
+        .leftJoin(users,    eq(contactRequests.from_id, users.id))
+        .leftJoin(profiles, eq(contactRequests.from_id, profiles.user_id))
+        .where(eq(contactRequests.to_id, currentUser.id))
+        .orderBy(sql`${contactRequests.created_at} DESC`)
+        .limit(50),
 
-    return rows
+      db.select().from(broadcasts)
+        .where(sql`${broadcasts.status} = 'sent'`)
+        .orderBy(desc(broadcasts.created_at))
+        .limit(30),
+
+      db.select({ broadcasts_seen_at: profiles.broadcasts_seen_at })
+        .from(profiles)
+        .where(eq(profiles.user_id, currentUser.id))
+        .limit(1),
+    ])
+
+    const seenAt = profileRow[0]?.broadcasts_seen_at ?? 0
+
+    return {
+      contact_requests: contactRows,
+      broadcasts: broadcastRows.map(b => ({ ...b, is_new: b.created_at > seenAt })),
+    }
   })
 
-  // Количество непрочитанных (pending)
+  // Total unread: pending contacts + broadcasts newer than last seen
   .get("/count", async ({ currentUser }) => {
-    const rows = await db
-      .select({ id: contactRequests.id })
-      .from(contactRequests)
-      .where(sql`${contactRequests.to_id} = ${currentUser.id} AND ${contactRequests.status} = 'pending'`)
-    return { count: rows.length }
+    const [contactRows, profileRow] = await Promise.all([
+      db.select({ id: contactRequests.id })
+        .from(contactRequests)
+        .where(sql`${contactRequests.to_id} = ${currentUser.id} AND ${contactRequests.status} = 'pending'`),
+
+      db.select({ broadcasts_seen_at: profiles.broadcasts_seen_at })
+        .from(profiles)
+        .where(eq(profiles.user_id, currentUser.id))
+        .limit(1),
+    ])
+
+    const seenAt = profileRow[0]?.broadcasts_seen_at ?? 0
+    const [{ count: unreadBroadcasts }] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(broadcasts)
+      .where(sql`${broadcasts.status} = 'sent' AND ${broadcasts.created_at} > ${seenAt}`)
+
+    return { count: contactRows.length + (unreadBroadcasts ?? 0) }
+  })
+
+  // Mark all broadcasts as seen
+  .post("/broadcasts-seen", async ({ currentUser }) => {
+    await db.update(profiles)
+      .set({ broadcasts_seen_at: Date.now() })
+      .where(eq(profiles.user_id, currentUser.id))
+    return { ok: true }
   })
 
   // Принять запрос

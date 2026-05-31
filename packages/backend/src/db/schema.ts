@@ -11,13 +11,14 @@ export const users = pgTable("users", {
 })
 
 export const profiles = pgTable("profiles", {
-  user_id:    text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
-  first_name: text("first_name").notNull(),
-  last_name:  text("last_name").notNull(),
-  phone:      text("phone").notNull(),
-  avatar_url: text("avatar_url"),
-  created_at: bigint("created_at", { mode: "number" }).notNull(),
-  updated_at: bigint("updated_at", { mode: "number" }).notNull(),
+  user_id:              text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+  first_name:           text("first_name").notNull(),
+  last_name:            text("last_name").notNull(),
+  phone:                text("phone").notNull(),
+  avatar_url:           text("avatar_url"),
+  broadcasts_seen_at:   bigint("broadcasts_seen_at", { mode: "number" }).notNull().default(0),
+  created_at:           bigint("created_at", { mode: "number" }).notNull(),
+  updated_at:           bigint("updated_at", { mode: "number" }).notNull(),
 })
 
 export const contacts = pgTable("contacts", {
