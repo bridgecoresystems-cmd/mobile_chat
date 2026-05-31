@@ -37,9 +37,13 @@
                 <span class="time">{{ formatTime(b.created_at) }}</span>
               </div>
               <span v-if="b.is_new" class="new-dot" />
-              <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="9 18 15 12 9 6"/>
-              </svg>
+              <button class="delete-btn" @click.stop="deleteBroadcast(b.id)">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                  <path d="M10 11v6M14 11v6"/>
+                </svg>
+              </button>
             </li>
           </ul>
         </section>
@@ -62,9 +66,18 @@
                 </button>
                 <button class="btn-reject" @click="reject(n)" :disabled="processing.has(n.id)">✕</button>
               </div>
-              <div v-else class="status-chip" :class="n.status">
-                {{ n.status === 'accepted' ? t('notif_accepted') : t('notif_rejected') }}
-              </div>
+              <template v-else>
+                <div class="status-chip" :class="n.status">
+                  {{ n.status === 'accepted' ? t('notif_accepted') : t('notif_rejected') }}
+                </div>
+                <button class="delete-btn" @click="deleteContactRequest(n.id)">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="3 6 5 6 21 6"/>
+                    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/>
+                    <path d="M10 11v6M14 11v6"/>
+                  </svg>
+                </button>
+              </template>
             </li>
           </ul>
         </section>
@@ -155,6 +168,17 @@ async function reject(n: Notification) {
   } finally {
     processing.value.delete(n.id)
   }
+}
+
+function deleteBroadcast(id: string) {
+  broadcastList.value = broadcastList.value.filter(b => b.id !== id)
+}
+
+async function deleteContactRequest(id: string) {
+  contactRequests.value = contactRequests.value.filter(n => n.id !== id)
+  fetch(`${API}/notifications/contact-request/${id}`, {
+    method: 'DELETE', headers: bffHeaders(),
+  }).catch(() => {})
 }
 
 function senderName(n: Notification) {
@@ -264,7 +288,18 @@ h1 {
   flex-shrink: 0;
 }
 
-.chevron { color: var(--muted); flex-shrink: 0; margin-left: auto; }
+.delete-btn {
+  flex-shrink: 0;
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted);
+  background: transparent;
+  transition: all .15s;
+  margin-left: auto;
+}
+.delete-btn:active { background: rgba(239,68,68,.12); color: #ef4444; transform: scale(0.9); }
+
+.chevron { color: var(--muted); flex-shrink: 0; }
 
 /* ── Contact request items ───────────────────────────────────────────────────── */
 .list li {

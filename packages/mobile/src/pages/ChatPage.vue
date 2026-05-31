@@ -106,11 +106,38 @@
       <button @click="cancelEdit">✕</button>
     </div>
 
+    <!-- Превью выбранных фото -->
+    <div v-if="pendingPhotos.length" class="photo-strip">
+      <div class="photo-strip-scroll">
+        <div v-for="(p, i) in pendingPhotos" :key="i" class="strip-thumb">
+          <img :src="p.previewUrl" />
+          <button class="strip-remove" @click="removePhoto(i)">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3">
+              <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+          <div v-if="uploadingIndex === i" class="strip-progress">
+            <span class="strip-spinner" />
+          </div>
+        </div>
+        <button
+          v-if="pendingPhotos.length < 5"
+          class="strip-add"
+          @click="onPhotoBtn"
+        >
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+        </button>
+      </div>
+      <span class="photo-count">{{ pendingPhotos.length }}/5</span>
+    </div>
+
     <footer>
       <div class="input-row">
         <button
           class="photo-btn"
-          :disabled="!isConnected || uploading"
+          :disabled="!isConnected || uploading || pendingPhotos.length >= 5"
           @click="onPhotoBtn"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -123,6 +150,7 @@
           ref="fileInputRef"
           type="file"
           accept="image/*"
+          multiple
           class="hidden-input"
           @change="onFileChange"
         />
@@ -138,7 +166,7 @@
         />
         <button
           class="send-btn"
-          :disabled="!draft.trim() || !isConnected || uploading"
+          :disabled="(!draft.trim() && !pendingPhotos.length) || !isConnected || uploading"
           @click="sendMsg"
         >
           <svg v-if="!uploading" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -163,7 +191,7 @@ import { useAuthStore, bffHeaders } from '../stores/auth'
 import { useChat } from '../composables/useChat'
 import { useI18n } from '../composables/useI18n'
 import { Capacitor } from '@capacitor/core'
-import { Camera, CameraResultType, CameraSource } from '@capacitor/camera'
+import { Camera } from '@capacitor/camera'
 import type { Contact } from '@chat/shared'
 import type { Message } from '../composables/useChat'
 import { db } from '../db/cache'
@@ -179,13 +207,17 @@ const roomId = route.params.roomId as string
 const chat   = useChat(roomId)
 const { messages, onlineUsers, typingUsers, isConnected } = chat
 
-const draft        = ref('')
-const bodyEl       = ref<HTMLElement | null>(null)
-const contact      = ref<Contact | null>(null)
-const uploading    = ref(false)
-const lightboxUrl  = ref<string | null>(null)
-const editingMsg   = ref<Message | null>(null)
-const fileInputRef = ref<HTMLInputElement | null>(null)
+interface PendingPhoto { file: File; previewUrl: string }
+
+const draft          = ref('')
+const bodyEl         = ref<HTMLElement | null>(null)
+const contact        = ref<Contact | null>(null)
+const uploading      = ref(false)
+const uploadingIndex = ref(-1)
+const lightboxUrl    = ref<string | null>(null)
+const editingMsg     = ref<Message | null>(null)
+const fileInputRef   = ref<HTMLInputElement | null>(null)
+const pendingPhotos  = ref<PendingPhoto[]>([])
 
 const peerId = computed(() => {
   const parts = roomId.split('__')
@@ -267,17 +299,38 @@ function formatTime(ts: number) {
 
 // ── Отправка / редактирование / удаление ─────────────────────────────────────
 
-function sendMsg() {
-  if (!draft.value.trim()) return
+async function sendMsg() {
+  const hasText   = !!draft.value.trim()
+  const hasPhotos = pendingPhotos.value.length > 0
+  if (!hasText && !hasPhotos) return
+
   if (editingMsg.value) {
     chat.editMessage(editingMsg.value.id, draft.value.trim())
     const msg = messages.value.find(m => m.id === editingMsg.value!.id)
     if (msg) msg.text = draft.value.trim()
     cancelEdit()
-  } else {
-    chat.send(draft.value.trim())
+    draft.value = ''
+    return
   }
-  draft.value = ''
+
+  uploading.value = true
+  try {
+    for (let i = 0; i < pendingPhotos.value.length; i++) {
+      uploadingIndex.value = i
+      const p   = pendingPhotos.value[i]
+      const url = await uploadFile(p.file)
+      chat.sendPhoto(url)
+      URL.revokeObjectURL(p.previewUrl)
+    }
+    pendingPhotos.value  = []
+    uploadingIndex.value = -1
+    if (hasText) { chat.send(draft.value.trim()); draft.value = '' }
+  } catch {
+    alert(t('chat_photo_err'))
+  } finally {
+    uploading.value      = false
+    uploadingIndex.value = -1
+  }
 }
 
 function startEdit(msg: Message) {
@@ -299,55 +352,66 @@ function confirmDelete(msgId: string) {
 
 function openPhoto(url: string) { lightboxUrl.value = url }
 
-async function uploadFile(file: File) {
-  uploading.value = true
-  try {
-    const form = new FormData()
-    form.append('file', file)
-    const res = await fetch(`${API}/upload`, {
-      method:  'POST',
-      headers: bffHeaders({ skipContentType: true }),
-      body:    form,
-    })
-    if (!res.ok) throw new Error('upload failed')
-    const { file_url } = await res.json()
-    chat.sendPhoto(file_url)
-  } catch (err) {
-    console.error('Photo upload failed:', err)
-    alert(t('chat_photo_err'))
-  } finally {
-    uploading.value = false
+const MAX_PHOTOS   = 5
+const MAX_SIZE_MB  = 10
+
+function removePhoto(index: number) {
+  URL.revokeObjectURL(pendingPhotos.value[index].previewUrl)
+  pendingPhotos.value.splice(index, 1)
+}
+
+function addToPending(files: File[]) {
+  for (const file of files) {
+    if (pendingPhotos.value.length >= MAX_PHOTOS) break
+    if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+      alert(`${file.name}: максимальный размер ${MAX_SIZE_MB} МБ`)
+      continue
+    }
+    pendingPhotos.value.push({ file, previewUrl: URL.createObjectURL(file) })
   }
+}
+
+async function uploadFile(file: File): Promise<string> {
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`${API}/upload`, {
+    method:  'POST',
+    headers: bffHeaders({ skipContentType: true }),
+    body:    form,
+  })
+  if (!res.ok) throw new Error('upload failed')
+  const { file_url } = await res.json()
+  return file_url
 }
 
 async function onPhotoBtn() {
   if (Capacitor.isNativePlatform()) {
     try {
-      const photo = await Camera.getPhoto({
-        resultType: CameraResultType.DataUrl,
-        source:     CameraSource.Prompt,  // показывает выбор: камера или галерея
-        quality:    85,
-      })
-      if (!photo.dataUrl) return
-      const res  = await fetch(photo.dataUrl)
-      const blob = await res.blob()
-      await uploadFile(new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' }))
-    } catch (err: any) {
-      if (err?.message !== 'User cancelled photos app') {
-        alert(t('chat_photo_err'))
+      const limit  = MAX_PHOTOS - pendingPhotos.value.length
+      const result = await Camera.pickImages({ quality: 85, limit })
+      for (const photo of result.photos) {
+        if (pendingPhotos.value.length >= MAX_PHOTOS) break
+        const blob = await fetch(photo.webPath!).then(r => r.blob())
+        const file = new File([blob], 'photo.jpg', { type: blob.type || 'image/jpeg' })
+        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+          alert(`Файл слишком большой (макс ${MAX_SIZE_MB} МБ)`)
+          continue
+        }
+        pendingPhotos.value.push({ file, previewUrl: photo.webPath! })
       }
+    } catch (err: any) {
+      if (err?.message !== 'User cancelled photos app') alert(t('chat_photo_err'))
     }
   } else {
     fileInputRef.value?.click()
   }
 }
 
-async function onFileChange(e: Event) {
+function onFileChange(e: Event) {
   const input = e.target as HTMLInputElement
-  const file  = input.files?.[0]
-  if (!file) return
+  if (!input.files?.length) return
+  addToPending(Array.from(input.files))
   input.value = ''
-  await uploadFile(file)
 }
 
 function onKey(e: KeyboardEvent) {
@@ -409,6 +473,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.visualViewport?.removeEventListener('resize', onViewportResize)
+  pendingPhotos.value.forEach(p => URL.revokeObjectURL(p.previewUrl))
 })
 </script>
 
@@ -802,6 +867,117 @@ header {
   color: currentColor; 
   font-size: 16px; 
   cursor: pointer;
+}
+
+/* ── Превью фото ─────────────────────────────────────────────────────────── */
+.photo-strip {
+  border-top: 1px solid var(--border);
+  background: var(--surface-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 10px 16px 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.photo-strip-scroll {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  flex: 1;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.photo-strip-scroll::-webkit-scrollbar { display: none; }
+
+.strip-thumb {
+  position: relative;
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1.5px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+.strip-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.strip-remove {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(4px);
+  transition: background 0.15s;
+}
+
+.strip-remove:active { background: rgba(239, 68, 68, 0.85); }
+
+.strip-progress {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: blur(2px);
+}
+
+.strip-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  display: inline-block;
+}
+
+.strip-add {
+  flex-shrink: 0;
+  width: 68px;
+  height: 68px;
+  border-radius: 10px;
+  border: 1.5px dashed var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  background: var(--surface);
+  transition: all 0.2s ease;
+}
+
+.strip-add:active {
+  border-color: var(--accent);
+  color: var(--accent);
+  transform: scale(0.95);
+}
+
+.photo-count {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  flex-shrink: 0;
 }
 
 /* ── Подвал ────────────────────────────────────────────────────────────────── */

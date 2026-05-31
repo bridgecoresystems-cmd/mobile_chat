@@ -1,3 +1,4 @@
+import sharp             from "sharp"
 import { Elysia, t }   from "elysia"
 import { cors }         from "@elysiajs/cors"
 import { swagger }      from "@elysiajs/swagger"
@@ -152,21 +153,25 @@ const app = new Elysia()
     }
   )
 
-  // POST /upload — прокси-загрузка файла в R2 через сервер (без CORS на клиенте)
+  // POST /upload — Sharp compress → R2 via engine (no CORS issues on client)
   .post(
     "/upload",
     async ({ headers, body, set }) => {
       const chatToken = headers["x-chat-token"]
       if (!chatToken) { set.status = 400; return { error: "missing X-Chat-Token header" } }
 
-      const file        = body.file as File
-      const contentType = file.type || "image/jpeg"
+      const file   = body.file as File
+      const raw    = Buffer.from(await file.arrayBuffer())
+      const processed = await sharp(raw)
+        .resize(1920, 1920, { fit: "inside", withoutEnlargement: true })
+        .jpeg({ quality: 85, progressive: true })
+        .toBuffer()
 
-      const qs        = `content_type=${contentType}&token=${chatToken}`
+      const qs        = `content_type=image/jpeg&token=${chatToken}`
       const uploadRes = await fetch(`${CHAT_ENGINE}/upload?${qs}`, {
         method:  "POST",
-        headers: { "content-type": contentType },
-        body:    file,
+        headers: { "content-type": "image/jpeg" },
+        body:    new Blob([processed], { type: "image/jpeg" }),
       })
       if (!uploadRes.ok) {
         const errBody = await uploadRes.text().catch(() => "")

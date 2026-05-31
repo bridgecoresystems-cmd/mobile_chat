@@ -20,9 +20,11 @@
     "elysia": "latest",
     "firebase-admin": "^13.10.0",
     "ioredis": "^5.11.0",
-    "postgres": "^3.4.5"
+    "postgres": "^3.4.5",
+    "sharp": "^0.34.5"
   },
   "devDependencies": {
+    "@types/sharp": "^0.32.0",
     "bun-types": "latest",
     "drizzle-kit": "^0.31.8"
   }

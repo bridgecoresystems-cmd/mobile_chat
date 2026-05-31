@@ -342,6 +342,20 @@ export const notificationRoutes = new Elysia({ prefix: "/notifications" })
     { params: t.Object({ requestId: t.String() }) }
   )
 
+  // Удалить уведомление о запросе (из своего списка)
+  .delete(
+    "/contact-request/:requestId",
+    async ({ params, currentUser }) => {
+      await db.delete(contactRequests).where(
+        sql`${contactRequests.id} = ${params.requestId}
+            AND (${contactRequests.to_id}   = ${currentUser.id}
+              OR ${contactRequests.from_id} = ${currentUser.id})`
+      )
+      return { ok: true }
+    },
+    { params: t.Object({ requestId: t.String() }) }
+  )
+
 // ── Chat summaries (last message + unread count per room) ─────────────────────
 export const chatSummaryRoutes = new Elysia({ prefix: "/chats" })
   .use(authGuard)
