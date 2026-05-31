@@ -397,6 +397,6 @@ export const chatSummaryRoutes = new Elysia({ prefix: "/chats" })
       LEFT JOIN unread     u  ON u.room_id  = mc.room_id
       ORDER BY COALESCE(lm.timestamp, mc.created_at) DESC
     `)
-    return rows
+    return [...rows]
   })
 
