@@ -7,9 +7,12 @@
     <nav class="navbar">
       <!-- Чаты -->
       <router-link to="/chats" class="nav-item" active-class="active">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
+        <div class="icon-wrap">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+          </svg>
+          <span v-if="chatUnreadCount > 0" class="badge">{{ chatUnreadCount > 9 ? '9+' : chatUnreadCount }}</span>
+        </div>
         <span>{{ t('nav_chats') }}</span>
       </router-link>
 
@@ -55,24 +58,26 @@ import { useI18n } from '../composables/useI18n'
 
 const { t } = useI18n()
 
-const API        = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
-const notifCount = ref(0)
+const API             = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+const notifCount      = ref(0)
+const chatUnreadCount = ref(0)
 
 let interval: ReturnType<typeof setInterval> | null = null
 
-async function fetchCount() {
+async function fetchCounts() {
   try {
-    const res = await fetch(`${API}/notifications/count`, { headers: bffHeaders() })
-    if (res.ok) {
-      const d = await res.json()
-      notifCount.value = d.count ?? 0
-    }
+    const [notifRes, chatRes] = await Promise.all([
+      fetch(`${API}/notifications/count`, { headers: bffHeaders() }),
+      fetch(`${API}/chats/unread-total`,  { headers: bffHeaders() }),
+    ])
+    if (notifRes.ok) notifCount.value      = (await notifRes.json()).count ?? 0
+    if (chatRes.ok)  chatUnreadCount.value = (await chatRes.json()).total ?? 0
   } catch {}
 }
 
 onMounted(() => {
-  fetchCount()
-  interval = setInterval(fetchCount, 10_000)
+  fetchCounts()
+  interval = setInterval(fetchCounts, 10_000)
 })
 
 onUnmounted(() => { if (interval) clearInterval(interval) })

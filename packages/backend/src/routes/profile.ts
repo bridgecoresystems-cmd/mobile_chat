@@ -400,3 +400,20 @@ export const chatSummaryRoutes = new Elysia({ prefix: "/chats" })
     return [...rows]
   })
 
+  // Total unread messages across all chats (for navbar badge)
+  .get("/unread-total", async ({ currentUser }) => {
+    const result = await db.execute(sql`
+      SELECT COUNT(*)::int AS total
+      FROM messages m
+      JOIN contacts c ON c.room_id = m.room_id AND c.user_id = ${currentUser.id}
+      WHERE m.sender_id  != ${currentUser.id}
+        AND m.deleted_at IS NULL
+        AND m.payload NOT IN ('join'::bytea, 'leave'::bytea)
+        AND NOT EXISTS (
+          SELECT 1 FROM read_receipts rr
+          WHERE rr.message_id = m.id AND rr.user_id = ${currentUser.id}
+        )
+    `)
+    return { total: (result[0] as any)?.total ?? 0 }
+  })
+
