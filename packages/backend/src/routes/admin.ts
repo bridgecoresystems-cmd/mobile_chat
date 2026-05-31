@@ -204,11 +204,17 @@ export const adminRoutes = new Elysia({ prefix: "/admin" })
     async ({ body, currentUser, set }) => {
       const { signChatJwt } = await import("../lib/chat-jwt")
       const chatToken = await signChatJwt("admin")
-      const res = await fetch(`${CHAT_ENGINE()}/broadcast?token=${chatToken}`, {
-        method:  "POST",
-        headers: { "content-type": "application/json" },
-        body:    JSON.stringify({ title: body.title, body: body.body, data: body.data ?? {} }),
-      })
+      let res: Response
+      try {
+        res = await fetch(`${CHAT_ENGINE()}/broadcast?token=${chatToken}`, {
+          method:  "POST",
+          headers: { "content-type": "application/json" },
+          body:    JSON.stringify({ title: body.title, body: body.body, data: body.data ?? {} }),
+        })
+      } catch {
+        set.status = 502
+        return { error: "chat engine unavailable" }
+      }
       if (!res.ok) { set.status = 502; return { error: "broadcast failed" } }
 
       const result = await res.json() as { recipients?: number }
