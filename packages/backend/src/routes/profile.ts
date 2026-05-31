@@ -341,3 +341,62 @@ export const notificationRoutes = new Elysia({ prefix: "/notifications" })
     },
     { params: t.Object({ requestId: t.String() }) }
   )
+
+// ── Chat summaries (last message + unread count per room) ─────────────────────
+export const chatSummaryRoutes = new Elysia({ prefix: "/chats" })
+  .use(authGuard)
+  .get("/", async ({ currentUser }) => {
+    const rows = await db.execute(sql`
+      WITH my_contacts AS (
+        SELECT c.contact_id, c.room_id, c.created_at,
+               u.username, p.first_name, p.last_name, p.phone
+        FROM contacts c
+        LEFT JOIN users    u ON u.id       = c.contact_id
+        LEFT JOIN profiles p ON p.user_id  = c.contact_id
+        WHERE c.user_id = ${currentUser.id}
+      ),
+      last_msgs AS (
+        SELECT DISTINCT ON (m.room_id)
+          m.room_id,
+          convert_from(m.payload, 'UTF8') AS text,
+          m.timestamp,
+          m.sender_id
+        FROM messages m
+        JOIN my_contacts mc ON mc.room_id = m.room_id
+        WHERE m.deleted_at IS NULL
+          AND m.payload NOT IN ('join'::bytea, 'leave'::bytea)
+        ORDER BY m.room_id, m.timestamp DESC
+      ),
+      unread AS (
+        SELECT m.room_id, COUNT(*)::int AS cnt
+        FROM messages m
+        JOIN my_contacts mc ON mc.room_id = m.room_id
+        WHERE m.sender_id  != ${currentUser.id}
+          AND m.deleted_at IS NULL
+          AND m.payload NOT IN ('join'::bytea, 'leave'::bytea)
+          AND NOT EXISTS (
+            SELECT 1 FROM read_receipts rr
+            WHERE rr.message_id = m.id AND rr.user_id = ${currentUser.id}
+          )
+        GROUP BY m.room_id
+      )
+      SELECT
+        mc.contact_id,
+        mc.room_id,
+        mc.created_at,
+        mc.username,
+        mc.first_name,
+        mc.last_name,
+        mc.phone,
+        lm.text            AS last_message,
+        lm.timestamp       AS last_message_at,
+        lm.sender_id       AS last_sender_id,
+        COALESCE(u.cnt, 0) AS unread_count
+      FROM my_contacts mc
+      LEFT JOIN last_msgs lm ON lm.room_id = mc.room_id
+      LEFT JOIN unread     u  ON u.room_id  = mc.room_id
+      ORDER BY COALESCE(lm.timestamp, mc.created_at) DESC
+    `)
+    return rows.rows
+  })
+

@@ -50,15 +50,22 @@
           class="chat-item"
           @click="openChat(c)"
         >
-          <div class="avatar" :style="{ background: avatarColor(c.contact_id) }">
-            {{ contactInitials(c) }}
+          <div class="avatar-wrap">
+            <div class="avatar" :style="{ background: avatarColor(c.contact_id) }">
+              {{ contactInitials(c) }}
+            </div>
+            <span v-if="c.unread_count > 0" class="unread-badge">
+              {{ c.unread_count > 99 ? '99+' : c.unread_count }}
+            </span>
           </div>
           <div class="info">
             <div class="top-row">
-              <span class="name">{{ contactName(c) }}</span>
-              <span class="time">{{ formatTime(c.created_at) }}</span>
+              <span class="name" :class="{ bold: c.unread_count > 0 }">{{ contactName(c) }}</span>
+              <span class="time" :class="{ accent: c.unread_count > 0 }">
+                {{ formatTime(Number(c.last_message_at) || c.created_at) }}
+              </span>
             </div>
-            <span class="sub">{{ c.phone ?? c.username ?? '&nbsp;' }}</span>
+            <span class="sub" :class="{ unread: c.unread_count > 0 }">{{ lastMessagePreview(c) }}</span>
           </div>
         </li>
 
@@ -78,15 +85,16 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import AppLayout from '../components/AppLayout.vue'
-import { bffHeaders } from '../stores/auth'
+import { useAuthStore, bffHeaders } from '../stores/auth'
 import { useI18n } from '../composables/useI18n'
-import type { Contact } from '@chat/shared'
+import { db, type ChatSummary } from '../db/cache'
 
 const router    = useRouter()
+const auth      = useAuthStore()
 const API       = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
 const { t, locale } = useI18n()
 
-const contacts     = ref<Contact[]>([])
+const contacts     = ref<ChatSummary[]>([])
 const loading      = ref(true)
 const query        = ref('')
 const searchFocused = ref(false)
@@ -107,16 +115,25 @@ function avatarColor(id: string): string {
   return COLORS[h % COLORS.length]
 }
 
-function contactName(c: Contact): string {
+function contactName(c: ChatSummary): string {
   if (c.first_name && c.last_name) return `${c.first_name} ${c.last_name}`
   return c.username ?? c.contact_id
 }
 
-function contactInitials(c: Contact): string {
+function contactInitials(c: ChatSummary): string {
   const n = contactName(c).split(' ')
   return n.length >= 2
     ? (n[0][0] + n[1][0]).toUpperCase()
     : n[0][0].toUpperCase()
+}
+
+function lastMessagePreview(c: ChatSummary): string {
+  if (!c.last_message) return c.phone ?? c.username ?? ' '
+  const text = c.last_message
+  const isPhoto = text.startsWith('{"type":"photo"')
+  const preview = isPhoto ? '📷 Фото' : (text.length > 45 ? text.slice(0, 45) + '…' : text)
+  const isMine  = c.last_sender_id === auth.user?.id
+  return isMine ? `Вы: ${preview}` : preview
 }
 
 function formatTime(ts: number): string {
@@ -131,10 +148,8 @@ function formatTime(ts: number): string {
   return d.toLocaleDateString(lc, { day: 'numeric', month: 'short' })
 }
 
-// Сортируем по created_at убывающе (самые последние вверху)
-const sorted = computed(() =>
-  [...contacts.value].sort((a, b) => b.created_at - a.created_at)
-)
+// Server already sorts by last_message_at DESC — keep order
+const sorted = computed(() => contacts.value)
 
 // Фильтрация по поисковому запросу
 const filtered = computed(() => {
@@ -170,16 +185,26 @@ watch(sentinel, (el) => { if (el) setupObserver() })
 watch(visible, async () => { await nextTick(); if (sentinel.value) setupObserver() })
 
 async function fetchContacts() {
-  loading.value = true
-  try {
-    const res = await fetch(`${API}/contacts`, { headers: bffHeaders() })
-    contacts.value = await res.json()
-  } finally {
-    loading.value = false
+  // Show from cache immediately
+  const cached = await db.chats.orderBy('room_id').toArray()
+  if (cached.length) {
+    contacts.value = cached
+    loading.value  = false
   }
+
+  try {
+    const res = await fetch(`${API}/chats`, { headers: bffHeaders() })
+    if (res.ok) {
+      const fresh: ChatSummary[] = await res.json()
+      contacts.value = fresh
+      await db.chats.bulkPut(fresh)
+    }
+  } catch {}
+
+  loading.value = false
 }
 
-function openChat(c: Contact) {
+function openChat(c: ChatSummary) {
   router.push(`/chat/${c.room_id}`)
 }
 
@@ -384,28 +409,42 @@ h1 {
   background: var(--surface);
 }
 
+.avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
 .avatar {
-  width: 48px;
-  height: 48px;
+  width: 50px;
+  height: 50px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
   color: #fff;
-  flex-shrink: 0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  position: relative;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
 }
 
-.avatar::after {
-  content: '';
+.unread-badge {
   position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), inset 0 -1px 0 rgba(0, 0, 0, 0.1);
+  bottom: -2px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  border-radius: 99px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  border: 2px solid var(--bg);
+  line-height: 1;
 }
 
 .info {
@@ -424,13 +463,14 @@ h1 {
 }
 
 .name {
-  font-weight: 700;
+  font-weight: 600;
   font-size: 15px;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.name.bold { font-weight: 800; }
 
 .time {
   font-size: 11px;
@@ -438,6 +478,7 @@ h1 {
   flex-shrink: 0;
   font-weight: 600;
 }
+.time.accent { color: var(--accent); font-weight: 700; }
 
 .sub {
   font-size: 13px;
@@ -445,8 +486,9 @@ h1 {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 500;
+  font-weight: 400;
 }
+.sub.unread { color: var(--text); font-weight: 600; }
 
 .sentinel {
   height: 1px;

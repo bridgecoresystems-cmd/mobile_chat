@@ -3,7 +3,7 @@ import { cors }         from "@elysiajs/cors"
 import { swagger }      from "@elysiajs/swagger"
 import { authRoutes }   from "./routes/auth"
 import { authGuard }    from "./middleware/auth"
-import { profileRoutes, searchRoutes, contactRoutes, notificationRoutes } from "./routes/profile"
+import { profileRoutes, searchRoutes, contactRoutes, notificationRoutes, chatSummaryRoutes } from "./routes/profile"
 import { adminRoutes }  from "./routes/admin"
 import { db }           from "./db"
 import { deviceTokens } from "./db/schema"
@@ -30,6 +30,7 @@ const app = new Elysia()
   .use(contactRoutes)
   .use(notificationRoutes)
   .use(adminRoutes)
+  .use(chatSummaryRoutes)
 
   // ── Public: history (no auth needed, Rust engine is source of truth) ──────
   .get(
