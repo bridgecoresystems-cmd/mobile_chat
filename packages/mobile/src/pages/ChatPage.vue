@@ -157,7 +157,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, computed, nextTick, onMounted } from 'vue'
+import { ref, watch, computed, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuthStore, bffHeaders } from '../stores/auth'
 import { useChat } from '../composables/useChat'
@@ -379,6 +379,12 @@ function onImageLoad() {
 watch(messages, scrollBottom, { deep: true })
 watch(typingText, (val) => { if (val) scrollBottom() })
 
+// When the keyboard opens on mobile the visual viewport shrinks.
+// Scroll to bottom so the last message stays visible above the input.
+function onViewportResize() {
+  if (isNearBottom()) scrollBottom()
+}
+
 async function loadContactInfo() {
   // Show name immediately from cache — no UID flash on slow internet
   const cached = await db.contacts.toArray()
@@ -396,8 +402,13 @@ async function loadContactInfo() {
 
 onMounted(async () => {
   if (!auth.chat_token || !auth.user) { router.push('/login'); return }
+  window.visualViewport?.addEventListener('resize', onViewportResize)
   await loadContactInfo()
   chat.connect(auth.chat_token, auth.user.id)
+})
+
+onUnmounted(() => {
+  window.visualViewport?.removeEventListener('resize', onViewportResize)
 })
 </script>
 
