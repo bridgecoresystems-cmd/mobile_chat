@@ -40,7 +40,10 @@ export const broadcasts = pgTable("broadcasts", {
   id:                  text("id").primaryKey(),
   title:               text("title").notNull(),
   body:                text("body").notNull(),
+  status:              text("status").notNull().default("pending"), // pending | scheduled | sending | sent | failed
   recipients:          integer("recipients").notNull().default(0),
+  scheduled_at:        bigint("scheduled_at", { mode: "number" }),
+  job_id:              text("job_id"),
   created_by:          text("created_by"),
   created_by_username: text("created_by_username"),
   created_at:          bigint("created_at", { mode: "number" }).notNull(),

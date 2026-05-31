@@ -3,6 +3,7 @@ import { eq, sql, desc }          from "drizzle-orm"
 import { db }                     from "../db"
 import { users, profiles, contacts, contactRequests, broadcasts } from "../db/schema"
 import { authGuard }              from "../middleware/auth"
+import { broadcastQueue }         from "../lib/queue"
 
 const CHAT_ENGINE = () => process.env.CHAT_SERVER_URL ?? "http://chat-engine:8080"
 
@@ -198,46 +199,45 @@ export const adminRoutes = new Elysia({ prefix: "/admin" })
     { params: t.Object({ id: t.String() }) }
   )
 
-  // ── Send broadcast (creates record + pushes FCM) ───────────────────────────
+  // ── Send broadcast via BullMQ (immediate or scheduled) ────────────────────
   .post(
     "/broadcast",
-    async ({ body, currentUser, set }) => {
-      const { signChatJwt } = await import("../lib/chat-jwt")
-      const chatToken = await signChatJwt("admin")
-      let res: Response
-      try {
-        res = await fetch(`${CHAT_ENGINE()}/broadcast?token=${chatToken}`, {
-          method:  "POST",
-          headers: { "content-type": "application/json" },
-          body:    JSON.stringify({ title: body.title, body: body.body, data: body.data ?? {} }),
-        })
-      } catch {
-        set.status = 502
-        return { error: "chat engine unavailable" }
-      }
-      if (!res.ok) { set.status = 502; return { error: "broadcast failed" } }
+    async ({ body, currentUser }) => {
+      const id  = crypto.randomUUID()
+      const now = Date.now()
 
-      const result = await res.json() as { recipients?: number }
-      const recipients = result.recipients ?? 0
+      const scheduledAt = body.scheduled_at ? new Date(body.scheduled_at).getTime() : null
+      const delay       = scheduledAt && scheduledAt > now ? scheduledAt - now : 0
+      const status      = delay > 0 ? "scheduled" : "pending"
 
-      const id = crypto.randomUUID()
       await db.insert(broadcasts).values({
         id,
         title:               body.title,
         body:                body.body,
-        recipients,
+        status,
+        scheduled_at:        scheduledAt,
+        recipients:          0,
         created_by:          currentUser!.id,
         created_by_username: currentUser!.username,
-        created_at:          Date.now(),
+        created_at:          now,
       })
 
-      return { ok: true, id, recipients }
+      const job = await broadcastQueue.add(
+        "send",
+        { broadcastId: id, title: body.title, body: body.body, data: body.data ?? {} },
+        { jobId: id, ...(delay > 0 ? { delay } : {}) }
+      )
+
+      await db.update(broadcasts).set({ job_id: job.id }).where(eq(broadcasts.id, id))
+
+      return { ok: true, id, scheduled: delay > 0, scheduled_at: scheduledAt }
     },
     {
       body: t.Object({
-        title: t.String({ minLength: 1 }),
-        body:  t.String({ minLength: 1 }),
-        data:  t.Optional(t.Record(t.String(), t.String())),
+        title:        t.String({ minLength: 1 }),
+        body:         t.String({ minLength: 1 }),
+        data:         t.Optional(t.Record(t.String(), t.String())),
+        scheduled_at: t.Optional(t.Nullable(t.String())), // ISO datetime, null = immediate
       }),
     }
   )

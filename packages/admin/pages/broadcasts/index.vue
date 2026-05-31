@@ -35,6 +35,7 @@
           <tr>
             <th>Заголовок</th>
             <th>Текст</th>
+            <th>Статус</th>
             <th>Получатели</th>
             <th>Отправил</th>
             <th>Дата</th>
@@ -55,6 +56,9 @@
               </div>
             </td>
             <td class="muted body-cell">{{ truncate(b.body, 60) }}</td>
+            <td>
+              <span class="status-badge" :class="b.status ?? 'sent'">{{ statusLabel(b.status) }}</span>
+            </td>
             <td>
               <span class="recipients-badge">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
@@ -131,6 +135,12 @@
             <span class="char-count">{{ form.body.length }}/300</span>
           </div>
 
+          <div class="field">
+            <label>Запланировать на (необязательно)</label>
+            <input v-model="form.scheduled_at" type="datetime-local" :min="minDatetime" />
+            <span class="field-hint">Оставьте пустым — отправится немедленно</span>
+          </div>
+
           <div class="preview-block" v-if="form.title || form.body">
             <span class="preview-label">Предпросмотр</span>
             <div class="notif-preview">
@@ -150,7 +160,7 @@
               <svg v-if="!sending" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                 <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
               </svg>
-              {{ sending ? 'Отправляем...' : 'Отправить всем' }}
+              {{ sending ? 'Ставим в очередь...' : (form.scheduled_at ? '📅 Запланировать' : '🚀 Отправить всем') }}
             </button>
           </div>
         </form>
@@ -173,7 +183,16 @@ const itemsPerPage = ref(10)
 const showModal   = ref(false)
 const sending     = ref(false)
 const sendError   = ref('')
-const form        = ref({ title: '', body: '' })
+const form        = ref({ title: '', body: '', scheduled_at: '' })
+
+const minDatetime = computed(() => {
+  const d = new Date(Date.now() + 60_000) // at least 1 min in future
+  return d.toISOString().slice(0, 16)
+})
+
+function statusLabel(s: string) {
+  return { pending: '⏳ В очереди', scheduled: '📅 Запланирована', sending: '📤 Отправляется', sent: '✅ Отправлена', failed: '❌ Ошибка' }[s] ?? s
+}
 
 function truncate(str: string, len: number) {
   return str.length > len ? str.slice(0, len) + '…' : str
@@ -229,8 +248,12 @@ async function sendBroadcast() {
   sendError.value = ''
   sending.value = true
   try {
-    await post('/admin/broadcast', { title: form.value.title, body: form.value.body })
-    form.value = { title: '', body: '' }
+    await post('/admin/broadcast', {
+      title:        form.value.title,
+      body:         form.value.body,
+      scheduled_at: form.value.scheduled_at || null,
+    })
+    form.value = { title: '', body: '', scheduled_at: '' }
     showModal.value = false
     await load()
   } catch (e: any) {
@@ -331,6 +354,19 @@ onMounted(() => {
   padding: 4px 10px; border-radius: 20px;
   font-size: 12px; font-weight: 700;
 }
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px; border-radius: 20px;
+  font-size: 12px; font-weight: 600;
+  background: var(--surface2); color: var(--muted);
+}
+.status-badge.sent      { background: rgba(34,197,94,.12); color: #22c55e; }
+.status-badge.scheduled { background: rgba(99,102,241,.12); color: var(--accent); }
+.status-badge.sending   { background: rgba(251,191,36,.12); color: #f59e0b; }
+.status-badge.failed    { background: rgba(239,68,68,.12);  color: #ef4444; }
+
+.field-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
 .action-btn {
   width: 30px; height: 30px; border-radius: 8px;

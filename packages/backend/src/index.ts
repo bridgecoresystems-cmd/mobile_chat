@@ -7,6 +7,9 @@ import { profileRoutes, searchRoutes, contactRoutes, notificationRoutes } from "
 import { adminRoutes }  from "./routes/admin"
 import { db }           from "./db"
 import { deviceTokens } from "./db/schema"
+import { startBroadcastWorker } from "./workers/broadcast.worker"
+
+startBroadcastWorker()
 
 const CHAT_ENGINE = process.env.CHAT_SERVER_URL ?? "http://chat-engine:8080"
 const CHAT_WS     = CHAT_ENGINE.replace(/^http/, "ws")
